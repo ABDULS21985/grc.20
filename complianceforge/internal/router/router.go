@@ -47,6 +47,7 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	authSvc := service.NewAuthService(db.Pool, cfg.JWT)
 	complianceSvc := service.NewComplianceEngine(db.Pool)
 	reportingSvc := service.NewReportingService(db.Pool)
+	onboardingSvc := service.NewOnboardingService(db.Pool)
 
 	// ── Handlers ─────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, cfg.App.Version)
@@ -61,6 +62,7 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	dashH := handler.NewDashboardV2(complianceSvc)
 	reportH := handler.NewReportHandler(reportingSvc)
 	settingsH := handler.NewSettingsHandler(userRepo, orgRepo, authSvc)
+	onboardH := handler.NewOnboardingHandler(onboardingSvc)
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -69,6 +71,7 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 		r.Get("/health", healthH.Health)
 		r.Get("/ready", healthH.Ready)
 		r.Post("/auth/login", authH.Login)
+		r.Post("/onboard", onboardH.Onboard)
 
 		// Authenticated
 		r.Group(func(r chi.Router) {

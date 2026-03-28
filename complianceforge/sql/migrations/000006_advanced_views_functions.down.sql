@@ -1,0 +1,12 @@
+DROP TRIGGER IF EXISTS trg_recalculate_score ON control_implementations;
+DROP FUNCTION IF EXISTS recalculate_framework_score();
+DROP FUNCTION IF EXISTS create_audit_log_partitions();
+DROP FUNCTION IF EXISTS get_executive_dashboard(UUID);
+DROP FUNCTION IF EXISTS calculate_org_maturity(UUID);
+DROP VIEW IF EXISTS v_kri_dashboard;
+DROP VIEW IF EXISTS v_risk_treatment_progress;
+DROP VIEW IF EXISTS v_audit_findings_summary;
+DROP VIEW IF EXISTS v_vendor_risk_summary;
+DROP VIEW IF EXISTS v_incident_metrics;
+DROP VIEW IF EXISTS v_policy_compliance_status;
+DROP VIEW IF EXISTS v_cross_framework_coverage;
