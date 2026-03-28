@@ -1,0 +1,17 @@
+DROP TABLE IF EXISTS assets CASCADE;
+DROP TABLE IF EXISTS vendors CASCADE;
+DROP TABLE IF EXISTS incidents CASCADE;
+DROP TABLE IF EXISTS audit_findings CASCADE;
+DROP TABLE IF EXISTS audits CASCADE;
+DROP TABLE IF EXISTS policy_exceptions CASCADE;
+DROP TABLE IF EXISTS policy_attestations CASCADE;
+DROP TABLE IF EXISTS policy_attestation_campaigns CASCADE;
+DROP TABLE IF EXISTS policy_versions CASCADE;
+DROP TABLE IF EXISTS policies CASCADE;
+DROP TABLE IF EXISTS policy_categories CASCADE;
+DROP FUNCTION IF EXISTS generate_vendor_ref(UUID);
+DROP FUNCTION IF EXISTS generate_incident_ref(UUID);
+DROP FUNCTION IF EXISTS generate_audit_ref(UUID);
+DROP FUNCTION IF EXISTS generate_policy_ref(UUID);
+DROP FUNCTION IF EXISTS update_policy_search_vector();
+DROP FUNCTION IF EXISTS set_breach_deadline();

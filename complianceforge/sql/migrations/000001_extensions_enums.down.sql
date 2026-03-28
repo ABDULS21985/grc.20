@@ -1,0 +1,24 @@
+DROP FUNCTION IF EXISTS update_updated_at();
+DROP FUNCTION IF EXISTS get_current_tenant();
+DROP FUNCTION IF EXISTS set_current_tenant(UUID);
+
+DROP TYPE IF EXISTS vendor_risk_tier;
+DROP TYPE IF EXISTS vendor_status;
+DROP TYPE IF EXISTS incident_type;
+DROP TYPE IF EXISTS incident_status;
+DROP TYPE IF EXISTS incident_severity;
+DROP TYPE IF EXISTS finding_severity;
+DROP TYPE IF EXISTS audit_status;
+DROP TYPE IF EXISTS classification_level;
+DROP TYPE IF EXISTS policy_status;
+DROP TYPE IF EXISTS treatment_type;
+DROP TYPE IF EXISTS risk_status;
+DROP TYPE IF EXISTS risk_level;
+DROP TYPE IF EXISTS mapping_type;
+DROP TYPE IF EXISTS implementation_type;
+DROP TYPE IF EXISTS control_type;
+DROP TYPE IF EXISTS control_status;
+DROP TYPE IF EXISTS mfa_method;
+DROP TYPE IF EXISTS user_status;
+DROP TYPE IF EXISTS org_tier;
+DROP TYPE IF EXISTS org_status;

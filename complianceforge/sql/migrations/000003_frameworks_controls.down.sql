@@ -1,0 +1,10 @@
+DROP VIEW IF EXISTS v_control_gap_analysis;
+DROP VIEW IF EXISTS v_compliance_score_by_framework;
+DROP TABLE IF EXISTS control_test_results CASCADE;
+DROP TABLE IF EXISTS control_evidence CASCADE;
+DROP TABLE IF EXISTS control_implementations CASCADE;
+DROP TABLE IF EXISTS organization_frameworks CASCADE;
+DROP TABLE IF EXISTS framework_control_mappings CASCADE;
+DROP TABLE IF EXISTS framework_controls CASCADE;
+DROP TABLE IF EXISTS framework_domains CASCADE;
+DROP TABLE IF EXISTS compliance_frameworks CASCADE;

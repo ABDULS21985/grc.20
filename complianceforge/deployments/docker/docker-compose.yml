@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  # ============================================================
+  # PostgreSQL 16 — Primary Database
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: complianceforge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: complianceforge
+      POSTGRES_PASSWORD: complianceforge
+      POSTGRES_DB: complianceforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U complianceforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis — Caching, Sessions, Job Queue
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: complianceforge-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # MailHog — Email Testing (Development)
+  # ============================================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: complianceforge-mail
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # ============================================================
+  # ComplianceForge API Server
+  # ============================================================
+  api:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/Dockerfile
+    container_name: complianceforge-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: development
+      APP_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: complianceforge
+      DB_PASSWORD: complianceforge
+      DB_NAME: complianceforge
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      ENCRYPTION_KEY: dev-32-byte-encryption-key-12345
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

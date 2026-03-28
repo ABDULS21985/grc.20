@@ -1,0 +1,13 @@
+DROP VIEW IF EXISTS v_top_risks;
+DROP VIEW IF EXISTS v_risk_heatmap;
+DROP TABLE IF EXISTS risk_control_mappings CASCADE;
+DROP TABLE IF EXISTS risk_indicator_values CASCADE;
+DROP TABLE IF EXISTS risk_indicators CASCADE;
+DROP TABLE IF EXISTS risk_treatments CASCADE;
+DROP TABLE IF EXISTS risk_assessments CASCADE;
+DROP TABLE IF EXISTS risks CASCADE;
+DROP TABLE IF EXISTS risk_appetite_statements CASCADE;
+DROP TABLE IF EXISTS risk_matrices CASCADE;
+DROP TABLE IF EXISTS risk_categories CASCADE;
+DROP FUNCTION IF EXISTS calculate_risk_scores();
+DROP FUNCTION IF EXISTS generate_risk_ref(UUID);
