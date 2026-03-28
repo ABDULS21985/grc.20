@@ -66,6 +66,9 @@ seed: ## Seed the database with initial data
 	psql "$(DB_URL)" -f ./sql/seeds/009_nist_800_53_controls.sql
 	psql "$(DB_URL)" -f ./sql/seeds/010_ncsc_caf_itil4_controls.sql
 	psql "$(DB_URL)" -f ./sql/seeds/011_remaining_mappings.sql
+	psql "$(DB_URL)" -f ./sql/seeds/012_nist_800_53_expanded.sql
+	psql "$(DB_URL)" -f ./sql/seeds/013_itil_nist_mappings.sql
+	psql "$(DB_URL)" -f ./sql/seeds/014_nist_csf_800_53_mappings.sql
 
 db-reset: migrate-down-all migrate-up seed ## Reset DB: drop all, migrate, seed
 

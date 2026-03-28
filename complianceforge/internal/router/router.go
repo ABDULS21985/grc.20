@@ -63,6 +63,7 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	reportH := handler.NewReportHandler(reportingSvc)
 	settingsH := handler.NewSettingsHandler(userRepo, orgRepo, authSvc)
 	onboardH := handler.NewOnboardingHandler(onboardingSvc)
+	controlH := handler.NewControlHandler(db)
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -87,6 +88,14 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 				r.Get("/controls/search", frameworkH.SearchControls)
 				r.Get("/{id}", frameworkH.GetFramework)
 				r.Get("/{id}/controls", frameworkH.GetFrameworkControls)
+				r.Get("/{id}/implementations", controlH.ListImplementations)
+			})
+
+			// ── Control Implementations ─────────────────
+			r.Route("/controls", func(r chi.Router) {
+				r.Get("/{id}", controlH.GetImplementation)
+				r.Put("/{id}", controlH.UpdateImplementation)
+				r.Post("/{id}/test", controlH.RecordTestResult)
 			})
 
 			// ── Compliance Engine ────────────────────────
