@@ -541,6 +541,187 @@ class ApiClient {
   async getAuditLog(page = 1) {
     return this.request<any>(`/settings/audit-log?page=${page}`);
   }
+
+  // ── Workflows ─────────────────────────────────────
+  async getWorkflowDefinitions(page = 1, pageSize = 50) {
+    return this.request<any>(`/workflows/definitions?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createWorkflowDefinition(data: any) {
+    return this.request<any>('/workflows/definitions', { method: 'POST', body: data });
+  }
+
+  async updateWorkflowDefinition(id: string, data: any) {
+    return this.request<any>(`/workflows/definitions/${id}`, { method: 'PUT', body: data });
+  }
+
+  async activateWorkflowDefinition(id: string) {
+    return this.request<any>(`/workflows/definitions/${id}/activate`, { method: 'POST' });
+  }
+
+  async getWorkflowSteps(defId: string) {
+    return this.request<any>(`/workflows/definitions/${defId}/steps`);
+  }
+
+  async addWorkflowStep(defId: string, data: any) {
+    return this.request<any>(`/workflows/definitions/${defId}/steps`, { method: 'POST', body: data });
+  }
+
+  async updateWorkflowStep(defId: string, stepId: string, data: any) {
+    return this.request<any>(`/workflows/definitions/${defId}/steps/${stepId}`, { method: 'PUT', body: data });
+  }
+
+  async deleteWorkflowStep(defId: string, stepId: string) {
+    return this.request<any>(`/workflows/definitions/${defId}/steps/${stepId}`, { method: 'DELETE' });
+  }
+
+  async getWorkflowInstances(page = 1, filters: Record<string, string> = {}) {
+    const params = new URLSearchParams({ page: String(page) });
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    return this.request<any>(`/workflows/instances?${params.toString()}`);
+  }
+
+  async getWorkflowInstance(id: string) {
+    return this.request<any>(`/workflows/instances/${id}`);
+  }
+
+  async startWorkflow(data: any) {
+    return this.request<any>('/workflows/start', { method: 'POST', body: data });
+  }
+
+  async cancelWorkflow(id: string, reason: string) {
+    return this.request<any>(`/workflows/instances/${id}/cancel`, { method: 'POST', body: { reason } });
+  }
+
+  async getMyApprovals() {
+    return this.request<any>('/workflows/my-approvals');
+  }
+
+  async approveExecution(id: string, data: any = {}) {
+    return this.request<any>(`/workflows/executions/${id}/approve`, { method: 'POST', body: data });
+  }
+
+  async rejectExecution(id: string, data: any) {
+    return this.request<any>(`/workflows/executions/${id}/reject`, { method: 'POST', body: data });
+  }
+
+  async delegateExecution(id: string, data: any) {
+    return this.request<any>(`/workflows/executions/${id}/delegate`, { method: 'POST', body: data });
+  }
+
+  async getWorkflowDelegations() {
+    return this.request<any>('/workflows/delegations');
+  }
+
+  async createWorkflowDelegation(data: any) {
+    return this.request<any>('/workflows/delegations', { method: 'POST', body: data });
+  }
+
+  // ── Access Control / ABAC (Prompt 20) ──────────────
+  async getAccessPolicies(page = 1, pageSize = 50) {
+    return this.request<any>(`/access/policies?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createAccessPolicy(data: any) {
+    return this.request<any>('/access/policies', { method: 'POST', body: data });
+  }
+
+  async updateAccessPolicy(id: string, data: any) {
+    return this.request<any>(`/access/policies/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteAccessPolicy(id: string) {
+    return this.request<any>(`/access/policies/${id}`, { method: 'DELETE' });
+  }
+
+  async getAccessPolicyAssignments(policyId: string) {
+    return this.request<any>(`/access/policies/${policyId}/assignments`);
+  }
+
+  async createAccessPolicyAssignment(policyId: string, data: any) {
+    return this.request<any>(`/access/policies/${policyId}/assignments`, { method: 'POST', body: data });
+  }
+
+  async deleteAccessPolicyAssignment(policyId: string, assignmentId: string) {
+    return this.request<any>(`/access/policies/${policyId}/assignments/${assignmentId}`, { method: 'DELETE' });
+  }
+
+  async evaluateAccessPolicy(data: any) {
+    return this.request<any>('/access/evaluate', { method: 'POST', body: data });
+  }
+
+  async getAccessAuditLog(page = 1, pageSize = 50) {
+    return this.request<any>(`/access/audit-log?page=${page}&page_size=${pageSize}`);
+  }
+
+  async getMyAccessPermissions() {
+    return this.request<any>('/access/my-permissions');
+  }
+
+  async getFieldPermissions(resourceType: string) {
+    return this.request<any>(`/access/field-permissions?resource_type=${resourceType}`);
+  }
+
+  // ── Integration Hub (Prompt 17) ──────────────────
+  async getIntegrations() {
+    return this.request<any>('/integrations');
+  }
+
+  async createIntegration(data: any) {
+    return this.request<any>('/integrations', { method: 'POST', body: data });
+  }
+
+  async getIntegration(id: string) {
+    return this.request<any>(`/integrations/${id}`);
+  }
+
+  async updateIntegration(id: string, data: any) {
+    return this.request<any>(`/integrations/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteIntegration(id: string) {
+    return this.request<any>(`/integrations/${id}`, { method: 'DELETE' });
+  }
+
+  async testIntegration(id: string) {
+    return this.request<any>(`/integrations/${id}/test`, { method: 'POST' });
+  }
+
+  async syncIntegration(id: string) {
+    return this.request<any>(`/integrations/${id}/sync`, { method: 'POST' });
+  }
+
+  async getIntegrationSyncLogs(id: string, page = 1, pageSize = 20) {
+    return this.request<any>(`/integrations/${id}/logs?page=${page}&page_size=${pageSize}`);
+  }
+
+  async getIntegrationHealth(id: string) {
+    return this.request<any>(`/integrations/${id}/health`);
+  }
+
+  async getIntegrationHealthSummary() {
+    return this.request<any>('/integrations/health/summary');
+  }
+
+  async getSSOConfig() {
+    return this.request<any>('/settings/sso');
+  }
+
+  async updateSSOConfig(data: any) {
+    return this.request<any>('/settings/sso', { method: 'PUT', body: data });
+  }
+
+  async getAPIKeys() {
+    return this.request<any>('/settings/api-keys');
+  }
+
+  async createAPIKey(data: any) {
+    return this.request<any>('/settings/api-keys', { method: 'POST', body: data });
+  }
+
+  async revokeAPIKey(id: string) {
+    return this.request<any>(`/settings/api-keys/${id}`, { method: 'DELETE' });
+  }
 }
 
 export const api = new ApiClient();

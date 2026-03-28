@@ -11,6 +11,7 @@ import (
 	"github.com/complianceforge/platform/internal/database"
 	"github.com/complianceforge/platform/internal/handler"
 	"github.com/complianceforge/platform/internal/middleware"
+	"github.com/complianceforge/platform/internal/pkg/crypto"
 	"github.com/complianceforge/platform/internal/pkg/queue"
 	"github.com/complianceforge/platform/internal/pkg/storage"
 	"github.com/complianceforge/platform/internal/repository"
@@ -74,8 +75,12 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	// Batch 3: Advanced Report Engine
 	reportEngine := service.NewReportEngine(db.Pool, fileStore)
 
-	// Batch 3: DSR Service
-	dsrSvc := service.NewDSRService(db.Pool)
+	// Batch 3: DSR Service (with PII encryption)
+	encryptor, err := crypto.NewEncryptor(cfg.Security.EncryptionKey)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to create encryptor — DSR PII encryption disabled")
+	}
+	dsrSvc := service.NewDSRService(db.Pool, encryptor)
 
 	// Batch 3: NIS2 Service
 	nis2Svc := service.NewNIS2Service(db.Pool)
@@ -84,6 +89,20 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	evidenceCollector := service.NewEvidenceCollector(db.Pool, jobQueue)
 	complianceMonitor := service.NewComplianceMonitor(db.Pool, jobQueue)
 	driftDetector := service.NewDriftDetector(db.Pool, jobQueue)
+
+	// Batch 4: Workflow Engine
+	workflowEngine := service.NewWorkflowEngine(db.Pool)
+
+	// Batch 4: Integration Hub
+	integrationSvc := service.NewIntegrationService(db.Pool, cfg.Security.EncryptionKey)
+
+	// Batch 4: Onboarding Wizard & Subscriptions
+	onboardingWizard := service.NewOnboardingWizard(db.Pool)
+	subscriptionSvc := service.NewSubscriptionService(db.Pool)
+
+	// Batch 4: ABAC Engine
+	abacEngine := service.NewABACEngine(db.Pool)
+	fieldMasker := service.NewFieldMasker(db.Pool, abacEngine)
 
 	// ── Handlers ─────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, cfg.App.Version)
@@ -107,6 +126,13 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	dsrH := handler.NewDSRHandler(dsrSvc)
 	nis2H := handler.NewNIS2Handler(nis2Svc)
 	monitorH := handler.NewMonitoringHandler(evidenceCollector, complianceMonitor, driftDetector)
+
+	// Batch 4 Handlers
+	workflowH := handler.NewWorkflowHandler(workflowEngine)
+	integrationH := handler.NewIntegrationHandler(integrationSvc, cfg.App.BaseURL)
+	onboardH = handler.NewOnboardingHandlerWithWizard(onboardingSvc, onboardingWizard)
+	subscriptionH := handler.NewSubscriptionHandler(subscriptionSvc)
+	accessH := handler.NewAccessHandler(abacEngine, fieldMasker)
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -326,6 +352,45 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 				r.Post("/users/{id}/roles", settingsH.AssignRole)
 				r.Get("/roles", settingsH.ListRoles)
 				r.Get("/audit-log", settingsH.GetAuditLog)
+			})
+
+			// ── Workflow Engine (Batch 4) ────────────────
+			workflowH.RegisterRoutes(r)
+
+			// ── Integration Hub (Batch 4) ────────────────
+			integrationH.RegisterRoutes(r)
+
+			// ── Onboarding Wizard (Batch 4) ──────────────
+			r.Get("/onboard/progress", onboardH.GetProgress)
+			r.Put("/onboard/step/{n}", onboardH.SaveStep)
+			r.Post("/onboard/step/{n}/skip", onboardH.SkipStep)
+			r.Post("/onboard/complete", onboardH.CompleteOnboarding)
+			r.Get("/onboard/recommendations", onboardH.GetRecommendations)
+
+			// ── Subscription Management (Batch 4) ────────
+			r.Route("/subscription", func(r chi.Router) {
+				r.Get("/", subscriptionH.GetSubscription)
+				r.Put("/plan", subscriptionH.ChangePlan)
+				r.Post("/cancel", subscriptionH.CancelSubscription)
+				r.Post("/pause", subscriptionH.PauseSubscription)
+				r.Post("/resume", subscriptionH.ResumeSubscription)
+				r.Get("/plans", subscriptionH.ListPlans)
+				r.Get("/usage", subscriptionH.GetUsage)
+				r.Post("/create", subscriptionH.CreateSubscription)
+			})
+
+			// ── Access Control / ABAC (Batch 4) ──────────
+			r.Route("/access", func(r chi.Router) {
+				r.Get("/policies", accessH.ListPolicies)
+				r.Post("/policies", accessH.CreatePolicy)
+				r.Put("/policies/{id}", accessH.UpdatePolicy)
+				r.Delete("/policies/{id}", accessH.DeletePolicy)
+				r.Post("/policies/{id}/assignments", accessH.CreateAssignment)
+				r.Delete("/policies/{id}/assignments/{assignmentId}", accessH.DeleteAssignment)
+				r.Post("/evaluate", accessH.EvaluateAccess)
+				r.Get("/audit-log", accessH.ListAuditLog)
+				r.Get("/my-permissions", accessH.GetMyPermissions)
+				r.Get("/field-permissions", accessH.GetFieldPermissions)
 			})
 		})
 	})

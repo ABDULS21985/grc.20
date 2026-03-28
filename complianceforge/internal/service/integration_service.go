@@ -18,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
+
+	"github.com/complianceforge/platform/internal/middleware"
 )
 
 // ============================================================
@@ -1040,8 +1042,9 @@ func (s *IntegrationService) RevokeAPIKey(ctx context.Context, orgID, id uuid.UU
 }
 
 // ValidateAPIKey looks up an API key by prefix, verifies its hash, checks
-// expiry, and records usage. Returns the key record on success.
-func (s *IntegrationService) ValidateAPIKey(ctx context.Context, rawKey string, clientIP string) (*APIKey, error) {
+// expiry, and records usage. Returns a *middleware.ValidatedAPIKey so the
+// IntegrationService satisfies the middleware.APIKeyValidator interface.
+func (s *IntegrationService) ValidateAPIKey(ctx context.Context, rawKey string, clientIP string) (*middleware.ValidatedAPIKey, error) {
 	if len(rawKey) < 10 {
 		return nil, fmt.Errorf("invalid API key format")
 	}
@@ -1086,7 +1089,17 @@ func (s *IntegrationService) ValidateAPIKey(ctx context.Context, rawKey string, 
 			k.ID, clientIP)
 	}()
 
-	return &k, nil
+	return &middleware.ValidatedAPIKey{
+		ID:              k.ID,
+		OrganizationID:  k.OrganizationID,
+		Name:            k.Name,
+		KeyPrefix:       k.KeyPrefix,
+		Permissions:     k.Permissions,
+		RateLimitPerMin: k.RateLimitPerMin,
+		ExpiresAt:       k.ExpiresAt,
+		IsActive:        k.IsActive,
+		CreatedBy:       k.CreatedBy,
+	}, nil
 }
 
 // ============================================================
