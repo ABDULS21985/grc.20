@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,10 +24,10 @@ import (
 
 // ReportEngine generates, renders, and stores compliance reports.
 type ReportEngine struct {
-	pool        *pgxpool.Pool
-	pdfRenderer *pdf.ReportRenderer
+	pool         *pgxpool.Pool
+	pdfRenderer  *pdf.ReportRenderer
 	xlsxRenderer *xlsxpkg.XLSXRenderer
-	storage     storage.Storage
+	storage      storage.Storage
 }
 
 // NewReportEngine creates a new ReportEngine with all dependencies.
@@ -65,54 +66,54 @@ type ReportDefinition struct {
 
 // ReportSchedule represents a scheduled report configuration.
 type ReportSchedule struct {
-	ID                   uuid.UUID   `json:"id" db:"id"`
-	OrganizationID       uuid.UUID   `json:"organization_id" db:"organization_id"`
-	ReportDefinitionID   uuid.UUID   `json:"report_definition_id" db:"report_definition_id"`
-	Name                 string      `json:"name" db:"name"`
-	Frequency            string      `json:"frequency" db:"frequency"`
-	DayOfWeek            *int        `json:"day_of_week" db:"day_of_week"`
-	DayOfMonth           *int        `json:"day_of_month" db:"day_of_month"`
-	TimeOfDay            string      `json:"time_of_day" db:"time_of_day"`
-	Timezone             string      `json:"timezone" db:"timezone"`
-	RecipientUserIDs     []uuid.UUID `json:"recipient_user_ids" db:"recipient_user_ids"`
-	RecipientEmails      []string    `json:"recipient_emails" db:"recipient_emails"`
-	DeliveryChannel      string      `json:"delivery_channel" db:"delivery_channel"`
-	IsActive             bool        `json:"is_active" db:"is_active"`
-	LastRunAt            *time.Time  `json:"last_run_at" db:"last_run_at"`
-	NextRunAt            *time.Time  `json:"next_run_at" db:"next_run_at"`
-	CreatedAt            time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time   `json:"updated_at" db:"updated_at"`
+	ID                 uuid.UUID   `json:"id" db:"id"`
+	OrganizationID     uuid.UUID   `json:"organization_id" db:"organization_id"`
+	ReportDefinitionID uuid.UUID   `json:"report_definition_id" db:"report_definition_id"`
+	Name               string      `json:"name" db:"name"`
+	Frequency          string      `json:"frequency" db:"frequency"`
+	DayOfWeek          *int        `json:"day_of_week" db:"day_of_week"`
+	DayOfMonth         *int        `json:"day_of_month" db:"day_of_month"`
+	TimeOfDay          string      `json:"time_of_day" db:"time_of_day"`
+	Timezone           string      `json:"timezone" db:"timezone"`
+	RecipientUserIDs   []uuid.UUID `json:"recipient_user_ids" db:"recipient_user_ids"`
+	RecipientEmails    []string    `json:"recipient_emails" db:"recipient_emails"`
+	DeliveryChannel    string      `json:"delivery_channel" db:"delivery_channel"`
+	IsActive           bool        `json:"is_active" db:"is_active"`
+	LastRunAt          *time.Time  `json:"last_run_at" db:"last_run_at"`
+	NextRunAt          *time.Time  `json:"next_run_at" db:"next_run_at"`
+	CreatedAt          time.Time   `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time   `json:"updated_at" db:"updated_at"`
 }
 
 // ReportRun tracks a single report generation execution.
 type ReportRun struct {
-	ID                   uuid.UUID       `json:"id" db:"id"`
-	OrganizationID       uuid.UUID       `json:"organization_id" db:"organization_id"`
-	ReportDefinitionID   uuid.UUID       `json:"report_definition_id" db:"report_definition_id"`
-	ScheduleID           *uuid.UUID      `json:"schedule_id" db:"schedule_id"`
-	Status               string          `json:"status" db:"status"`
-	Format               string          `json:"format" db:"format"`
-	FilePath             string          `json:"file_path" db:"file_path"`
-	FileSizeBytes        int64           `json:"file_size_bytes" db:"file_size_bytes"`
-	PageCount            int             `json:"page_count" db:"page_count"`
-	GenerationTimeMs     int             `json:"generation_time_ms" db:"generation_time_ms"`
-	Parameters           json.RawMessage `json:"parameters" db:"parameters"`
-	GeneratedBy          uuid.UUID       `json:"generated_by" db:"generated_by"`
-	ErrorMessage         string          `json:"error_message" db:"error_message"`
-	CreatedAt            time.Time       `json:"created_at" db:"created_at"`
-	CompletedAt          *time.Time      `json:"completed_at" db:"completed_at"`
+	ID                 uuid.UUID       `json:"id" db:"id"`
+	OrganizationID     uuid.UUID       `json:"organization_id" db:"organization_id"`
+	ReportDefinitionID uuid.UUID       `json:"report_definition_id" db:"report_definition_id"`
+	ScheduleID         *uuid.UUID      `json:"schedule_id" db:"schedule_id"`
+	Status             string          `json:"status" db:"status"`
+	Format             string          `json:"format" db:"format"`
+	FilePath           string          `json:"file_path" db:"file_path"`
+	FileSizeBytes      int64           `json:"file_size_bytes" db:"file_size_bytes"`
+	PageCount          int             `json:"page_count" db:"page_count"`
+	GenerationTimeMs   int             `json:"generation_time_ms" db:"generation_time_ms"`
+	Parameters         json.RawMessage `json:"parameters" db:"parameters"`
+	GeneratedBy        uuid.UUID       `json:"generated_by" db:"generated_by"`
+	ErrorMessage       string          `json:"error_message" db:"error_message"`
+	CreatedAt          time.Time       `json:"created_at" db:"created_at"`
+	CompletedAt        *time.Time      `json:"completed_at" db:"completed_at"`
 }
 
 // ReportFilters contains common filter parameters for report queries.
 type ReportFilters struct {
-	FrameworkID   *uuid.UUID `json:"framework_id,omitempty"`
-	AuditID       *uuid.UUID `json:"audit_id,omitempty"`
-	DateFrom      *time.Time `json:"date_from,omitempty"`
-	DateTo        *time.Time `json:"date_to,omitempty"`
-	Severity      string     `json:"severity,omitempty"`
-	Status        string     `json:"status,omitempty"`
-	RiskLevel     string     `json:"risk_level,omitempty"`
-	IncludeAll    bool       `json:"include_all,omitempty"`
+	FrameworkID *uuid.UUID `json:"framework_id,omitempty"`
+	AuditID     *uuid.UUID `json:"audit_id,omitempty"`
+	DateFrom    *time.Time `json:"date_from,omitempty"`
+	DateTo      *time.Time `json:"date_to,omitempty"`
+	Severity    string     `json:"severity,omitempty"`
+	Status      string     `json:"status,omitempty"`
+	RiskLevel   string     `json:"risk_level,omitempty"`
+	IncludeAll  bool       `json:"include_all,omitempty"`
 }
 
 // ============================================================
@@ -121,12 +122,12 @@ type ReportFilters struct {
 
 // GenerateReportRequest is the payload for ad-hoc report generation.
 type GenerateReportRequest struct {
-	ReportType            string          `json:"report_type" validate:"required"`
-	Format                string          `json:"format" validate:"required,oneof=pdf xlsx csv json"`
-	Name                  string          `json:"name,omitempty"`
-	Filters               json.RawMessage `json:"filters,omitempty"`
-	Classification        string          `json:"classification,omitempty"`
-	IncludeExecutiveSummary bool          `json:"include_executive_summary,omitempty"`
+	ReportType              string          `json:"report_type" validate:"required"`
+	Format                  string          `json:"format" validate:"required,oneof=pdf xlsx csv json"`
+	Name                    string          `json:"name,omitempty"`
+	Filters                 json.RawMessage `json:"filters,omitempty"`
+	Classification          string          `json:"classification,omitempty"`
+	IncludeExecutiveSummary bool            `json:"include_executive_summary,omitempty"`
 }
 
 // CreateReportDefinitionRequest is the payload for saving a report definition.
@@ -201,116 +202,116 @@ type ComplianceReportData struct {
 
 // RiskReportData holds all data for a risk register report.
 type RiskReportData struct {
-	Metadata           pdf.ReportMetadata
-	TotalRisks         int
-	RisksByLevel       map[string]int
-	RisksByCategory    []CategoryRiskCount
-	TopRisks           []TopRiskEntry
-	HeatmapData        []HeatmapCell
-	TreatmentProgress  TreatmentSummary
-	AverageRiskScore   float64
+	Metadata          pdf.ReportMetadata
+	TotalRisks        int
+	RisksByLevel      map[string]int
+	RisksByCategory   []CategoryRiskCount
+	TopRisks          []TopRiskEntry
+	HeatmapData       []HeatmapCell
+	TreatmentProgress TreatmentSummary
+	AverageRiskScore  float64
 }
 
 // HeatmapCell represents a single cell in a risk heatmap.
 type HeatmapCell struct {
-	Likelihood int    `json:"likelihood"`
-	Impact     int    `json:"impact"`
-	Count      int    `json:"count"`
+	Likelihood int      `json:"likelihood"`
+	Impact     int      `json:"impact"`
+	Count      int      `json:"count"`
 	RiskRefs   []string `json:"risk_refs"`
 }
 
 // AuditReportData holds data for an audit report.
 type AuditReportData struct {
-	Metadata          pdf.ReportMetadata
-	AuditRef          string
-	AuditTitle        string
-	AuditType         string
-	AuditStatus       string
-	Scope             string
-	LeadAuditor       string
-	PlannedStart      string
-	PlannedEnd        string
-	ActualStart       string
-	ActualEnd         string
-	Conclusion        string
-	TotalFindings     int
+	Metadata           pdf.ReportMetadata
+	AuditRef           string
+	AuditTitle         string
+	AuditType          string
+	AuditStatus        string
+	Scope              string
+	LeadAuditor        string
+	PlannedStart       string
+	PlannedEnd         string
+	ActualStart        string
+	ActualEnd          string
+	Conclusion         string
+	TotalFindings      int
 	FindingsBySeverity map[string]int
-	Findings          []AuditFindingRow
+	Findings           []AuditFindingRow
 }
 
 // AuditFindingRow represents a finding in the audit report.
 type AuditFindingRow struct {
-	FindingRef    string `json:"finding_ref"`
-	Title         string `json:"title"`
-	Severity      string `json:"severity"`
-	Status        string `json:"status"`
-	FindingType   string `json:"finding_type"`
-	ControlCode   string `json:"control_code"`
-	Responsible   string `json:"responsible"`
-	DueDate       string `json:"due_date"`
-	RootCause     string `json:"root_cause"`
+	FindingRef     string `json:"finding_ref"`
+	Title          string `json:"title"`
+	Severity       string `json:"severity"`
+	Status         string `json:"status"`
+	FindingType    string `json:"finding_type"`
+	ControlCode    string `json:"control_code"`
+	Responsible    string `json:"responsible"`
+	DueDate        string `json:"due_date"`
+	RootCause      string `json:"root_cause"`
 	Recommendation string `json:"recommendation"`
 }
 
 // IncidentReportData holds data for an incident summary report.
 type IncidentReportData struct {
-	Metadata           pdf.ReportMetadata
-	TotalIncidents     int
-	OpenIncidents      int
+	Metadata            pdf.ReportMetadata
+	TotalIncidents      int
+	OpenIncidents       int
 	IncidentsBySeverity map[string]int
-	IncidentsByType    map[string]int
-	IncidentsByStatus  map[string]int
-	DataBreaches       []BreachEntry
-	RecentIncidents    []IncidentRow
-	AvgResolutionHours float64
+	IncidentsByType     map[string]int
+	IncidentsByStatus   map[string]int
+	DataBreaches        []BreachEntry
+	RecentIncidents     []IncidentRow
+	AvgResolutionHours  float64
 }
 
 // BreachEntry represents a data breach in the report.
 type BreachEntry struct {
-	IncidentRef           string `json:"incident_ref"`
-	Title                 string `json:"title"`
-	Severity              string `json:"severity"`
-	DataSubjectsAffected  int    `json:"data_subjects_affected"`
-	DPANotified           bool   `json:"dpa_notified"`
-	NotificationDeadline  string `json:"notification_deadline"`
-	Status                string `json:"status"`
+	IncidentRef          string `json:"incident_ref"`
+	Title                string `json:"title"`
+	Severity             string `json:"severity"`
+	DataSubjectsAffected int    `json:"data_subjects_affected"`
+	DPANotified          bool   `json:"dpa_notified"`
+	NotificationDeadline string `json:"notification_deadline"`
+	Status               string `json:"status"`
 }
 
 // IncidentRow represents an incident entry in the report.
 type IncidentRow struct {
-	IncidentRef  string  `json:"incident_ref"`
-	Title        string  `json:"title"`
-	Type         string  `json:"type"`
-	Severity     string  `json:"severity"`
-	Status       string  `json:"status"`
-	ReportedAt   string  `json:"reported_at"`
-	AssignedTo   string  `json:"assigned_to"`
+	IncidentRef     string  `json:"incident_ref"`
+	Title           string  `json:"title"`
+	Type            string  `json:"type"`
+	Severity        string  `json:"severity"`
+	Status          string  `json:"status"`
+	ReportedAt      string  `json:"reported_at"`
+	AssignedTo      string  `json:"assigned_to"`
 	FinancialImpact float64 `json:"financial_impact"`
 }
 
 // VendorReportData holds data for a vendor risk report.
 type VendorReportData struct {
-	Metadata       pdf.ReportMetadata
-	TotalVendors   int
-	VendorsByTier  map[string]int
-	VendorsByStatus map[string]int
-	CriticalVendors []VendorRow
+	Metadata           pdf.ReportMetadata
+	TotalVendors       int
+	VendorsByTier      map[string]int
+	VendorsByStatus    map[string]int
+	CriticalVendors    []VendorRow
 	OverdueAssessments int
-	AvgRiskScore   float64
+	AvgRiskScore       float64
 }
 
 // VendorRow represents a vendor entry in the report.
 type VendorRow struct {
-	VendorRef       string  `json:"vendor_ref"`
-	Name            string  `json:"name"`
-	RiskTier        string  `json:"risk_tier"`
-	RiskScore       float64 `json:"risk_score"`
-	Status          string  `json:"status"`
-	DataProcessing  bool    `json:"data_processing"`
-	DPAInPlace      bool    `json:"dpa_in_place"`
-	LastAssessment  string  `json:"last_assessment"`
-	NextAssessment  string  `json:"next_assessment"`
-	Certifications  string  `json:"certifications"`
+	VendorRef      string  `json:"vendor_ref"`
+	Name           string  `json:"name"`
+	RiskTier       string  `json:"risk_tier"`
+	RiskScore      float64 `json:"risk_score"`
+	Status         string  `json:"status"`
+	DataProcessing bool    `json:"data_processing"`
+	DPAInPlace     bool    `json:"dpa_in_place"`
+	LastAssessment string  `json:"last_assessment"`
+	NextAssessment string  `json:"next_assessment"`
+	Certifications string  `json:"certifications"`
 }
 
 // PolicyReportData holds data for a policy status report.
@@ -347,27 +348,27 @@ type AttestationStats struct {
 
 // ExecutiveSummaryData holds data for a board-level executive summary.
 type ExecutiveSummaryData struct {
-	Metadata             pdf.ReportMetadata
+	Metadata               pdf.ReportMetadata
 	OverallComplianceScore float64
-	OverallRiskScore     float64
-	CriticalRiskCount    int
-	HighRiskCount        int
-	OpenIncidents        int
-	DataBreachCount      int
-	AuditFindingsOpen    int
-	PolicyComplianceRate float64
-	TopRisks             []TopRiskEntry
-	ComplianceByFramework []FrameworkReportSummary
-	KeyMetrics           []KeyMetric
-	TreatmentProgress    TreatmentSummary
+	OverallRiskScore       float64
+	CriticalRiskCount      int
+	HighRiskCount          int
+	OpenIncidents          int
+	DataBreachCount        int
+	AuditFindingsOpen      int
+	PolicyComplianceRate   float64
+	TopRisks               []TopRiskEntry
+	ComplianceByFramework  []FrameworkReportSummary
+	KeyMetrics             []KeyMetric
+	TreatmentProgress      TreatmentSummary
 }
 
 // KeyMetric represents a single KPI for the executive summary.
 type KeyMetric struct {
-	Name   string  `json:"name"`
-	Value  string  `json:"value"`
-	Trend  string  `json:"trend"`  // up, down, stable
-	Status string  `json:"status"` // green, amber, red
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Trend  string `json:"trend"`  // up, down, stable
+	Status string `json:"status"` // green, amber, red
 }
 
 // GapAnalysisData holds data for a gap analysis report.
@@ -385,12 +386,12 @@ type GapAnalysisData struct {
 
 // DomainGapSummary holds gap analysis data for a framework domain.
 type DomainGapSummary struct {
-	DomainCode       string  `json:"domain_code"`
-	DomainName       string  `json:"domain_name"`
-	TotalControls    int     `json:"total_controls"`
-	Implemented      int     `json:"implemented"`
-	Gaps             int     `json:"gaps"`
-	ComplianceScore  float64 `json:"compliance_score"`
+	DomainCode      string  `json:"domain_code"`
+	DomainName      string  `json:"domain_name"`
+	TotalControls   int     `json:"total_controls"`
+	Implemented     int     `json:"implemented"`
+	Gaps            int     `json:"gaps"`
+	ComplianceScore float64 `json:"compliance_score"`
 }
 
 // RemediationItem represents a remediation action in the gap analysis.
@@ -416,11 +417,11 @@ type CrossFrameworkData struct {
 
 // FrameworkCoverageSummary holds coverage data for a single framework.
 type FrameworkCoverageSummary struct {
-	Code             string  `json:"code"`
-	Name             string  `json:"name"`
-	TotalControls    int     `json:"total_controls"`
-	MappedControls   int     `json:"mapped_controls"`
-	CoveragePercent  float64 `json:"coverage_percent"`
+	Code            string  `json:"code"`
+	Name            string  `json:"name"`
+	TotalControls   int     `json:"total_controls"`
+	MappedControls  int     `json:"mapped_controls"`
+	CoveragePercent float64 `json:"coverage_percent"`
 }
 
 // MappingRow represents a cross-framework mapping entry.
@@ -1976,6 +1977,11 @@ func (e *ReportEngine) ListRuns(ctx context.Context, orgID uuid.UUID, page, page
 // ============================================================
 // HELPERS
 // ============================================================
+
+// GetFileReader returns an io.ReadCloser for a stored report file.
+func (e *ReportEngine) GetFileReader(_ context.Context, filePath string) (io.ReadCloser, error) {
+	return e.storage.Retrieve(filePath)
+}
 
 func (e *ReportEngine) getOrgName(ctx context.Context, orgID uuid.UUID) string {
 	var name string

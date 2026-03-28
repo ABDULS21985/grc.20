@@ -223,13 +223,13 @@ func (ec *EvidenceCollector) ExecuteCollection(ctx context.Context, configID, or
 
 	switch cfg.CollectionMethod {
 	case "manual":
-		collectedData, collectionErr = ec.CollectManual(ctx, cfg)
+		collectedData, collectionErr = ec.CollectManual(ctx, *cfg)
 	case "api_fetch":
-		collectedData, collectionErr = ec.CollectAPI(ctx, cfg)
+		collectedData, collectionErr = ec.CollectAPI(ctx, *cfg)
 	case "file_watch":
-		collectedData, collectionErr = ec.CollectFile(ctx, cfg)
+		collectedData, collectionErr = ec.CollectFile(ctx, *cfg)
 	case "script_execution":
-		collectedData, collectionErr = ec.CollectScript(ctx, cfg)
+		collectedData, collectionErr = ec.CollectScript(ctx, *cfg)
 	default:
 		collectionErr = fmt.Errorf("unsupported collection method: %s", cfg.CollectionMethod)
 	}

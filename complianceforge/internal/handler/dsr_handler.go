@@ -22,20 +22,28 @@ func NewDSRHandler(svc *service.DSRService) *DSRHandler {
 	return &DSRHandler{svc: svc}
 }
 
+// ============================================================
+// LIST / GET REQUESTS
+// ============================================================
+
 // ListRequests returns paginated DSR requests with optional filters.
-// GET /api/v1/dsr?page=1&page_size=20&status=in_progress&type=access&sla_status=at_risk
+// GET /api/v1/dsr?page=1&page_size=20&status=in_progress&request_type=access&sla_status=at_risk
 func (h *DSRHandler) ListRequests(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 	params := parsePagination(r)
 
 	status := r.URL.Query().Get("status")
-	requestType := r.URL.Query().Get("type")
+	requestType := r.URL.Query().Get("request_type")
 	slaStatus := r.URL.Query().Get("sla_status")
 
 	dsrs, total, err := h.svc.ListRequests(r.Context(), orgID, params.Page, params.PageSize, status, requestType, slaStatus)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve DSR requests")
 		return
+	}
+
+	if dsrs == nil {
+		dsrs = []service.DSRRequest{}
 	}
 
 	totalPages := int(total) / params.PageSize
@@ -75,37 +83,34 @@ func (h *DSRHandler) GetRequest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: dsr})
 }
 
-// CreateRequest creates a new DSR.
+// ============================================================
+// CREATE / UPDATE REQUEST
+// ============================================================
+
+// CreateRequest creates a new DSR with auto-generated task checklist.
 // POST /api/v1/dsr
 func (h *DSRHandler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 	userID := middleware.GetUserID(r.Context())
 
-	var req service.CreateDSRRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var input service.CreateDSRRequest
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
 		return
 	}
 
-	if req.RequestType == "" || req.DataSubjectName == "" || req.DataSubjectEmail == "" || req.RequestSource == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "request_type, data_subject_name, data_subject_email, and request_source are required")
+	if input.RequestType == "" || input.DataSubjectName == "" || input.DataSubjectEmail == "" {
+		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "request_type, data_subject_name, and data_subject_email are required")
 		return
 	}
 
-	dsr, err := h.svc.CreateRequest(r.Context(), orgID, userID, req)
+	dsr, err := h.svc.CreateRequest(r.Context(), orgID, userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create DSR request")
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, models.APIResponse{
-		Success: true,
-		Data: map[string]interface{}{
-			"request":           dsr,
-			"gdpr_notice":       "Request acknowledged. 30-day response deadline set per GDPR Article 12(3).",
-			"response_deadline": dsr.ResponseDeadline.Format("2006-01-02"),
-		},
-	})
+	writeJSON(w, http.StatusCreated, models.APIResponse{Success: true, Data: dsr})
 }
 
 // UpdateRequest updates mutable fields of a DSR.
@@ -119,13 +124,13 @@ func (h *DSRHandler) UpdateRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req service.UpdateDSRRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var input service.UpdateDSRRequest
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
 		return
 	}
 
-	if err := h.svc.UpdateRequest(r.Context(), orgID, dsrID, req, userID); err != nil {
+	if err := h.svc.UpdateRequest(r.Context(), orgID, dsrID, input, userID); err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to update DSR request")
 		return
 	}
@@ -135,6 +140,10 @@ func (h *DSRHandler) UpdateRequest(w http.ResponseWriter, r *http.Request) {
 		Data:    map[string]string{"message": "DSR request updated successfully"},
 	})
 }
+
+// ============================================================
+// IDENTITY VERIFICATION
+// ============================================================
 
 // VerifyIdentity records that the data subject's identity has been verified.
 // POST /api/v1/dsr/{id}/verify-identity
@@ -151,7 +160,7 @@ func (h *DSRHandler) VerifyIdentity(w http.ResponseWriter, r *http.Request) {
 		Method string `json:"method"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Method == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "method is required (e.g., 'government_id', 'email_confirmation', 'in_person')")
+		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "method is required")
 		return
 	}
 
@@ -162,13 +171,13 @@ func (h *DSRHandler) VerifyIdentity(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, models.APIResponse{
 		Success: true,
-		Data: map[string]interface{}{
-			"identity_verified": true,
-			"method":            req.Method,
-			"message":           "Data subject identity verified. Request moved to in_progress.",
-		},
+		Data:    map[string]string{"message": "Data subject identity verified"},
 	})
 }
+
+// ============================================================
+// ASSIGNMENT
+// ============================================================
 
 // AssignRequest assigns a DSR to a user.
 // POST /api/v1/dsr/{id}/assign
@@ -203,7 +212,11 @@ func (h *DSRHandler) AssignRequest(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ExtendDeadline extends the response deadline by 60 days per GDPR Article 12(3).
+// ============================================================
+// EXTEND DEADLINE
+// ============================================================
+
+// ExtendDeadline extends the DSR response deadline by 60 days per GDPR Article 12(3).
 // POST /api/v1/dsr/{id}/extend
 func (h *DSRHandler) ExtendDeadline(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
@@ -218,7 +231,7 @@ func (h *DSRHandler) ExtendDeadline(w http.ResponseWriter, r *http.Request) {
 		Reason string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Reason == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "reason is required for deadline extension per GDPR Article 12(3)")
+		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "reason is required for deadline extension")
 		return
 	}
 
@@ -230,13 +243,16 @@ func (h *DSRHandler) ExtendDeadline(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, models.APIResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"extended":     true,
-			"reason":       req.Reason,
-			"gdpr_notice":  "Deadline extended by 60 days per GDPR Article 12(3). Data subject must be notified.",
-			"message":      "Response deadline extended. Remember to notify the data subject of the extension.",
+			"extended": true,
+			"reason":   req.Reason,
+			"message":  "DSR response deadline extended by 60 days",
 		},
 	})
 }
+
+// ============================================================
+// COMPLETE / REJECT REQUEST
+// ============================================================
 
 // CompleteRequest marks a DSR as completed.
 // POST /api/v1/dsr/{id}/complete
@@ -251,11 +267,14 @@ func (h *DSRHandler) CompleteRequest(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		ResponseMethod string `json:"response_method"`
-		DocumentPath   string `json:"document_path,omitempty"`
+		DocumentPath   string `json:"document_path"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ResponseMethod == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "response_method is required (email, post, portal, in_person)")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
 		return
+	}
+	if req.ResponseMethod == "" {
+		req.ResponseMethod = "email"
 	}
 
 	if err := h.svc.CompleteRequest(r.Context(), orgID, dsrID, req.ResponseMethod, req.DocumentPath, userID); err != nil {
@@ -265,11 +284,7 @@ func (h *DSRHandler) CompleteRequest(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, models.APIResponse{
 		Success: true,
-		Data: map[string]interface{}{
-			"completed":       true,
-			"response_method": req.ResponseMethod,
-			"message":         "DSR request completed and response delivered to data subject.",
-		},
+		Data:    map[string]string{"message": "DSR request completed successfully"},
 	})
 }
 
@@ -288,8 +303,8 @@ func (h *DSRHandler) RejectRequest(w http.ResponseWriter, r *http.Request) {
 		Reason     string `json:"reason"`
 		LegalBasis string `json:"legal_basis"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Reason == "" || req.LegalBasis == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "reason and legal_basis are required for rejection")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Reason == "" {
+		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "reason is required for rejection")
 		return
 	}
 
@@ -304,23 +319,43 @@ func (h *DSRHandler) RejectRequest(w http.ResponseWriter, r *http.Request) {
 			"rejected":    true,
 			"reason":      req.Reason,
 			"legal_basis": req.LegalBasis,
-			"message":     "DSR request rejected. Data subject must be notified of the rejection and their right to complain.",
+			"message":     "DSR request rejected",
 		},
 	})
 }
 
-// UpdateTask updates a DSR task's status.
-// PUT /api/v1/dsr/{id}/tasks/{taskId}
-func (h *DSRHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
-	orgID := middleware.GetOrgID(r.Context())
-	userID := middleware.GetUserID(r.Context())
+// ============================================================
+// TASKS
+// ============================================================
 
-	_, err := uuid.Parse(chi.URLParam(r, "id"))
+// GetTasks returns tasks for a specific DSR.
+// GET /api/v1/dsr/{id}/tasks
+func (h *DSRHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
+	orgID := middleware.GetOrgID(r.Context())
+	dsrID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_ID", "Invalid DSR request ID")
 		return
 	}
 
+	tasks, err := h.svc.GetTasks(r.Context(), orgID, dsrID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve DSR tasks")
+		return
+	}
+
+	if tasks == nil {
+		tasks = []service.DSRTask{}
+	}
+
+	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: tasks})
+}
+
+// UpdateTask updates a DSR task.
+// PUT /api/v1/dsr/{id}/tasks/{taskId}
+func (h *DSRHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
+	orgID := middleware.GetOrgID(r.Context())
+	userID := middleware.GetUserID(r.Context())
 	taskID, err := uuid.Parse(chi.URLParam(r, "taskId"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_ID", "Invalid task ID")
@@ -329,12 +364,12 @@ func (h *DSRHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Status       string     `json:"status"`
-		Notes        string     `json:"notes,omitempty"`
-		EvidencePath string     `json:"evidence_path,omitempty"`
-		AssignedTo   *uuid.UUID `json:"assigned_to,omitempty"`
+		Notes        string     `json:"notes"`
+		EvidencePath string     `json:"evidence_path"`
+		AssignedTo   *uuid.UUID `json:"assigned_to"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Status == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "status is required (pending, in_progress, completed, blocked, not_applicable)")
+		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "status is required")
 		return
 	}
 
@@ -353,9 +388,40 @@ func (h *DSRHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Dashboard returns summary metrics for DSR management.
+// ============================================================
+// AUDIT TRAIL
+// ============================================================
+
+// GetAuditTrail returns the audit trail for a specific DSR.
+// GET /api/v1/dsr/{id}/audit-trail
+func (h *DSRHandler) GetAuditTrail(w http.ResponseWriter, r *http.Request) {
+	orgID := middleware.GetOrgID(r.Context())
+	dsrID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_ID", "Invalid DSR request ID")
+		return
+	}
+
+	entries, err := h.svc.GetAuditTrail(r.Context(), orgID, dsrID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve audit trail")
+		return
+	}
+
+	if entries == nil {
+		entries = []service.DSRAuditEntry{}
+	}
+
+	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: entries})
+}
+
+// ============================================================
+// DASHBOARD, OVERDUE & TEMPLATES
+// ============================================================
+
+// GetDashboard returns aggregated DSR compliance metrics.
 // GET /api/v1/dsr/dashboard
-func (h *DSRHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
+func (h *DSRHandler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 
 	dashboard, err := h.svc.GetDSRDashboard(r.Context(), orgID)
@@ -367,9 +433,9 @@ func (h *DSRHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: dashboard})
 }
 
-// OverdueRequests returns DSR requests that are past their deadline.
+// GetOverdue returns DSR requests that are past their deadline.
 // GET /api/v1/dsr/overdue
-func (h *DSRHandler) OverdueRequests(w http.ResponseWriter, r *http.Request) {
+func (h *DSRHandler) GetOverdue(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 
 	overdue, err := h.svc.GetOverdueRequests(r.Context(), orgID)
@@ -378,10 +444,14 @@ func (h *DSRHandler) OverdueRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if overdue == nil {
+		overdue = []service.DSRRequest{}
+	}
+
 	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: overdue})
 }
 
-// ListTemplates returns DSR response templates.
+// ListTemplates returns DSR response templates (system + org-specific).
 // GET /api/v1/dsr/templates
 func (h *DSRHandler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
@@ -390,6 +460,10 @@ func (h *DSRHandler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get response templates")
 		return
+	}
+
+	if templates == nil {
+		templates = []service.DSRResponseTemplate{}
 	}
 
 	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: templates})

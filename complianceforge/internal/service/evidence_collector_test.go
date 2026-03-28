@@ -1,6 +1,9 @@
 package service
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"testing"
 )
@@ -338,15 +341,12 @@ func TestValidateEvidence_MultipleCriteria_OneFails(t *testing.T) {
 	if len(results) != 3 {
 		t.Fatalf("Expected 3 results, got %d", len(results))
 	}
-	// First should pass (status equals ok)
 	if !results[0].Passed {
 		t.Error("First criterion should have passed")
 	}
-	// Second should fail (85 < 90)
 	if results[1].Passed {
 		t.Error("Second criterion should have failed (score 85 not > 90)")
 	}
-	// Third should pass (0 < 5)
 	if !results[2].Passed {
 		t.Error("Third criterion should have passed")
 	}
@@ -495,8 +495,7 @@ func TestValidateWebhookSignature_Valid(t *testing.T) {
 	payload := []byte(`{"event":"test"}`)
 	secret := "mysecret"
 
-	// Compute expected signature
-	expectedSig := computeHMACSHA256(payload, secret)
+	expectedSig := testComputeHMACSHA256(payload, secret)
 
 	if !ec.ValidateWebhookSignature(payload, expectedSig, secret) {
 		t.Error("Expected valid signature to pass")
@@ -509,7 +508,7 @@ func TestValidateWebhookSignature_ValidWithPrefix(t *testing.T) {
 	payload := []byte(`{"event":"test"}`)
 	secret := "mysecret"
 
-	expectedSig := "sha256=" + computeHMACSHA256(payload, secret)
+	expectedSig := "sha256=" + testComputeHMACSHA256(payload, secret)
 
 	if !ec.ValidateWebhookSignature(payload, expectedSig, secret) {
 		t.Error("Expected valid signature with sha256= prefix to pass")
@@ -529,16 +528,16 @@ func TestValidateWebhookSignature_WrongSecret(t *testing.T) {
 	ec := &EvidenceCollector{}
 
 	payload := []byte(`{"event":"test"}`)
-	sig := computeHMACSHA256(payload, "correct_secret")
+	sig := testComputeHMACSHA256(payload, "correct_secret")
 
 	if ec.ValidateWebhookSignature(payload, sig, "wrong_secret") {
 		t.Error("Expected signature with wrong secret to fail")
 	}
 }
 
-// helper to compute HMAC-SHA256 hex for tests
-func computeHMACSHA256(payload []byte, secret string) string {
-	import_hmac := hmacNew(sha256New, []byte(secret))
-	import_hmac.Write(payload)
-	return hexEncodeToString(import_hmac.Sum(nil))
+// testComputeHMACSHA256 computes HMAC-SHA256 hex for tests.
+func testComputeHMACSHA256(payload []byte, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(payload)
+	return hex.EncodeToString(mac.Sum(nil))
 }

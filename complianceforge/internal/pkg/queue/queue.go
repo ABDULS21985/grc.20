@@ -25,6 +25,14 @@ const (
 	JobTypeVendorAssessmentDue    = "vendor_assessment_due"
 	JobTypeAttestationReminder    = "attestation_reminder"
 	JobTypeAuditLogExport         = "audit_log_export"
+
+	// Batch 3 job types
+	JobTypeEvidenceCollection     = "evidence_collection"
+	JobTypeDSRDeadlineCheck       = "dsr_deadline_check"
+	JobTypeNIS2DeadlineCheck      = "nis2_deadline_check"
+	JobTypeDriftAnalysis          = "drift_analysis"
+	JobTypeReportScheduleCheck    = "report_schedule_check"
+	JobTypeMonitorCheck           = "monitor_check"
 )
 
 // Queue names for priority-based processing.

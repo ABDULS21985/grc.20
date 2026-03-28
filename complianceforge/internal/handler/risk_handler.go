@@ -102,12 +102,7 @@ func (h *RiskHandler) CreateRisk(w http.ResponseWriter, r *http.Request) {
 		Metadata:           models.JSONB("{}"),
 	}
 
-	err := h.db.ExecWithTenant(r.Context(), orgID.String(), func(tx interface{ QueryRow(ctx interface{}, sql string, args ...interface{}) interface{} }) error {
-		return nil // placeholder — actual impl uses db.BeginTx
-	})
-	_ = err
-
-	// Simplified: direct creation via pool transaction
+	// Direct creation via pool transaction
 	tx, err := h.db.BeginTx(r.Context(), orgID.String())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to start transaction")

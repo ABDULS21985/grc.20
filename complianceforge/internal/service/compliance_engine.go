@@ -228,6 +228,7 @@ func (e *ComplianceEngine) DashboardSummary(ctx context.Context, orgID uuid.UUID
 
 	// Risk summary
 	summary.RiskSummary = make(map[string]int64)
+	var critCount, highCount, medCount, lowCount int64
 	e.pool.QueryRow(ctx, `
 		SELECT
 			COUNT(*) FILTER (WHERE residual_risk_level = 'critical'),
@@ -235,10 +236,11 @@ func (e *ComplianceEngine) DashboardSummary(ctx context.Context, orgID uuid.UUID
 			COUNT(*) FILTER (WHERE residual_risk_level = 'medium'),
 			COUNT(*) FILTER (WHERE residual_risk_level = 'low')
 		FROM risks WHERE organization_id = $1 AND deleted_at IS NULL`, orgID,
-	).Scan(
-		&summary.RiskSummary["critical"], &summary.RiskSummary["high"],
-		&summary.RiskSummary["medium"], &summary.RiskSummary["low"],
-	)
+	).Scan(&critCount, &highCount, &medCount, &lowCount)
+	summary.RiskSummary["critical"] = critCount
+	summary.RiskSummary["high"] = highCount
+	summary.RiskSummary["medium"] = medCount
+	summary.RiskSummary["low"] = lowCount
 
 	// Open incidents
 	e.pool.QueryRow(ctx, `

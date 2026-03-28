@@ -11,16 +11,20 @@ import (
 
 	"github.com/complianceforge/platform/internal/middleware"
 	"github.com/complianceforge/platform/internal/models"
+	"github.com/complianceforge/platform/internal/service"
 )
 
 // NotificationHandler handles HTTP requests for the notification system.
+// It wraps the NotificationEngine for event-driven operations and a database
+// pool for direct queries on notifications, preferences, rules, and channels.
 type NotificationHandler struct {
-	db *pgxpool.Pool
+	engine *service.NotificationEngine
+	db     *pgxpool.Pool
 }
 
 // NewNotificationHandler creates a new handler for notification endpoints.
-func NewNotificationHandler(db *pgxpool.Pool) *NotificationHandler {
-	return &NotificationHandler{db: db}
+func NewNotificationHandler(engine *service.NotificationEngine, db *pgxpool.Pool) *NotificationHandler {
+	return &NotificationHandler{engine: engine, db: db}
 }
 
 // ============================================================
@@ -30,18 +34,9 @@ func NewNotificationHandler(db *pgxpool.Pool) *NotificationHandler {
 // ListNotifications returns the current user's in-app notifications with pagination.
 // GET /api/v1/notifications
 func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
 	orgID := middleware.GetOrgID(r.Context())
+	userID := middleware.GetUserID(r.Context())
 	params := parsePagination(r)
-
-	// Get unread count in parallel
-	var unreadCount int64
-	h.db.QueryRow(r.Context(), `
-		SELECT COUNT(*) FROM notifications
-		WHERE recipient_user_id = $1 AND organization_id = $2
-		  AND channel_type = 'in_app' AND read_at IS NULL`,
-		userID, orgID,
-	).Scan(&unreadCount)
 
 	// Get paginated notifications
 	rows, err := h.db.Query(r.Context(), `
@@ -62,16 +57,16 @@ func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.R
 	defer rows.Close()
 
 	type notificationItem struct {
-		ID              uuid.UUID              `json:"id"`
-		EventType       string                 `json:"event_type"`
-		EventPayload    json.RawMessage        `json:"event_payload"`
-		Subject         string                 `json:"subject"`
-		Body            string                 `json:"body"`
-		Status          string                 `json:"status"`
-		ReadAt          *time.Time             `json:"read_at,omitempty"`
-		AcknowledgedAt  *time.Time             `json:"acknowledged_at,omitempty"`
-		Metadata        json.RawMessage        `json:"metadata"`
-		CreatedAt       time.Time              `json:"created_at"`
+		ID             uuid.UUID       `json:"id"`
+		EventType      string          `json:"event_type"`
+		EventPayload   json.RawMessage `json:"event_payload"`
+		Subject        string          `json:"subject"`
+		Body           string          `json:"body"`
+		Status         string          `json:"status"`
+		ReadAt         *time.Time      `json:"read_at,omitempty"`
+		AcknowledgedAt *time.Time      `json:"acknowledged_at,omitempty"`
+		Metadata       json.RawMessage `json:"metadata"`
+		CreatedAt      time.Time       `json:"created_at"`
 	}
 
 	var notifications []notificationItem
@@ -111,9 +106,9 @@ func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.R
 		totalPages++
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"data": notifications,
-		"pagination": models.Pagination{
+	writeJSON(w, http.StatusOK, models.PaginatedResponse{
+		Data: notifications,
+		Pagination: models.Pagination{
 			Page:       params.Page,
 			PageSize:   params.PageSize,
 			TotalItems: total,
@@ -121,7 +116,30 @@ func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.R
 			HasNext:    params.Page < totalPages,
 			HasPrev:    params.Page > 1,
 		},
-		"unread_count": unreadCount,
+	})
+}
+
+// GetUnreadCount returns the count of unread in-app notifications for the bell badge.
+// GET /api/v1/notifications/unread-count
+func (h *NotificationHandler) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
+	orgID := middleware.GetOrgID(r.Context())
+	userID := middleware.GetUserID(r.Context())
+
+	var count int64
+	err := h.db.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM notifications
+		WHERE recipient_user_id = $1 AND organization_id = $2
+		  AND channel_type = 'in_app' AND read_at IS NULL`,
+		userID, orgID,
+	).Scan(&count)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get unread count")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, models.APIResponse{
+		Success: true,
+		Data:    map[string]interface{}{"count": count},
 	})
 }
 
@@ -160,8 +178,8 @@ func (h *NotificationHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
 // MarkAllRead marks all of the user's unread notifications as read.
 // PUT /api/v1/notifications/read-all
 func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
 	orgID := middleware.GetOrgID(r.Context())
+	userID := middleware.GetUserID(r.Context())
 
 	result, err := h.db.Exec(r.Context(), `
 		UPDATE notifications SET read_at = NOW()
@@ -180,30 +198,6 @@ func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request
 			"marked_count": result.RowsAffected(),
 			"read_at":      time.Now(),
 		},
-	})
-}
-
-// GetUnreadCount returns the count of unread in-app notifications for the bell badge.
-// GET /api/v1/notifications/unread-count
-func (h *NotificationHandler) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
-	orgID := middleware.GetOrgID(r.Context())
-
-	var count int64
-	err := h.db.QueryRow(r.Context(), `
-		SELECT COUNT(*) FROM notifications
-		WHERE recipient_user_id = $1 AND organization_id = $2
-		  AND channel_type = 'in_app' AND read_at IS NULL`,
-		userID, orgID,
-	).Scan(&count)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get unread count")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, models.APIResponse{
-		Success: true,
-		Data:    map[string]interface{}{"unread_count": count},
 	})
 }
 
@@ -332,10 +326,11 @@ func (h *NotificationHandler) UpdatePreferences(w http.ResponseWriter, r *http.R
 // ADMIN: NOTIFICATION RULES
 // ============================================================
 
-// ListNotificationRules returns the organization's notification rules.
-// GET /api/v1/settings/notification-rules
-func (h *NotificationHandler) ListNotificationRules(w http.ResponseWriter, r *http.Request) {
+// ListRules returns the organization's notification rules with pagination.
+// GET /api/v1/notifications/rules
+func (h *NotificationHandler) ListRules(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
+	params := parsePagination(r)
 
 	rows, err := h.db.Query(r.Context(), `
 		SELECT id, name, event_type, severity_filter, conditions, channel_ids,
@@ -344,8 +339,9 @@ func (h *NotificationHandler) ListNotificationRules(w http.ResponseWriter, r *ht
 			   created_at, updated_at
 		FROM notification_rules
 		WHERE organization_id = $1
-		ORDER BY event_type, name`,
-		orgID,
+		ORDER BY event_type, name
+		LIMIT $2 OFFSET $3`,
+		orgID, params.PageSize, params.Offset(),
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve rules")
@@ -391,12 +387,34 @@ func (h *NotificationHandler) ListNotificationRules(w http.ResponseWriter, r *ht
 		rules = []ruleItem{}
 	}
 
-	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: rules})
+	// Get total count
+	var total int64
+	h.db.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM notification_rules WHERE organization_id = $1`,
+		orgID,
+	).Scan(&total)
+
+	totalPages := int(total) / params.PageSize
+	if int(total)%params.PageSize != 0 {
+		totalPages++
+	}
+
+	writeJSON(w, http.StatusOK, models.PaginatedResponse{
+		Data: rules,
+		Pagination: models.Pagination{
+			Page:       params.Page,
+			PageSize:   params.PageSize,
+			TotalItems: total,
+			TotalPages: totalPages,
+			HasNext:    params.Page < totalPages,
+			HasPrev:    params.Page > 1,
+		},
+	})
 }
 
-// CreateNotificationRule creates a new notification rule.
-// POST /api/v1/settings/notification-rules
-func (h *NotificationHandler) CreateNotificationRule(w http.ResponseWriter, r *http.Request) {
+// CreateRule creates a new notification rule.
+// POST /api/v1/notifications/rules
+func (h *NotificationHandler) CreateRule(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 
 	var req struct {
@@ -450,9 +468,9 @@ func (h *NotificationHandler) CreateNotificationRule(w http.ResponseWriter, r *h
 	})
 }
 
-// UpdateNotificationRule updates an existing notification rule.
-// PUT /api/v1/settings/notification-rules/{id}
-func (h *NotificationHandler) UpdateNotificationRule(w http.ResponseWriter, r *http.Request) {
+// UpdateRule updates an existing notification rule.
+// PUT /api/v1/notifications/rules/{id}
+func (h *NotificationHandler) UpdateRule(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 	ruleID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -517,9 +535,9 @@ func (h *NotificationHandler) UpdateNotificationRule(w http.ResponseWriter, r *h
 	})
 }
 
-// DeleteNotificationRule removes a notification rule.
-// DELETE /api/v1/settings/notification-rules/{id}
-func (h *NotificationHandler) DeleteNotificationRule(w http.ResponseWriter, r *http.Request) {
+// DeleteRule removes a notification rule.
+// DELETE /api/v1/notifications/rules/{id}
+func (h *NotificationHandler) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 	ruleID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -551,9 +569,9 @@ func (h *NotificationHandler) DeleteNotificationRule(w http.ResponseWriter, r *h
 // ADMIN: NOTIFICATION CHANNELS
 // ============================================================
 
-// ListNotificationChannels returns the organization's configured channels.
-// GET /api/v1/settings/notification-channels
-func (h *NotificationHandler) ListNotificationChannels(w http.ResponseWriter, r *http.Request) {
+// ListChannels returns the organization's configured notification channels.
+// GET /api/v1/notifications/channels
+func (h *NotificationHandler) ListChannels(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 
 	rows, err := h.db.Query(r.Context(), `
@@ -600,9 +618,9 @@ func (h *NotificationHandler) ListNotificationChannels(w http.ResponseWriter, r 
 	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Data: channels})
 }
 
-// CreateNotificationChannel creates a new notification channel configuration.
-// POST /api/v1/settings/notification-channels
-func (h *NotificationHandler) CreateNotificationChannel(w http.ResponseWriter, r *http.Request) {
+// CreateChannel creates a new notification channel configuration.
+// POST /api/v1/notifications/channels
+func (h *NotificationHandler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 
 	var req struct {
@@ -652,9 +670,9 @@ func (h *NotificationHandler) CreateNotificationChannel(w http.ResponseWriter, r
 	})
 }
 
-// TestNotificationChannel sends a test notification through a channel.
-// POST /api/v1/settings/notification-channels/{id}/test
-func (h *NotificationHandler) TestNotificationChannel(w http.ResponseWriter, r *http.Request) {
+// TestChannel sends a test notification through a channel.
+// POST /api/v1/notifications/channels/{id}/test
+func (h *NotificationHandler) TestChannel(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 	userID := middleware.GetUserID(r.Context())
 	channelID, err := uuid.Parse(chi.URLParam(r, "id"))

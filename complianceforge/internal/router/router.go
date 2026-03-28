@@ -5,11 +5,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/rs/zerolog/log"
 
 	"github.com/complianceforge/platform/internal/config"
 	"github.com/complianceforge/platform/internal/database"
 	"github.com/complianceforge/platform/internal/handler"
 	"github.com/complianceforge/platform/internal/middleware"
+	"github.com/complianceforge/platform/internal/pkg/queue"
+	"github.com/complianceforge/platform/internal/pkg/storage"
 	"github.com/complianceforge/platform/internal/repository"
 	"github.com/complianceforge/platform/internal/service"
 )
@@ -49,6 +52,39 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	reportingSvc := service.NewReportingService(db.Pool)
 	onboardingSvc := service.NewOnboardingService(db.Pool)
 
+	// Batch 3: Queue (Redis-backed)
+	var jobQueue *queue.Queue
+	q, err := queue.NewFromAddr(cfg.Redis.Addr(), cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to create job queue — background jobs disabled")
+	} else {
+		jobQueue = q
+	}
+
+	// Batch 3: File storage
+	fileStore, err := storage.NewStorage(cfg.Storage)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to create file storage — report downloads disabled")
+	}
+
+	// Batch 3: Notification Engine
+	eventBus := service.NewEventBus(256)
+	notificationEngine := service.NewNotificationEngine(db.Pool, eventBus)
+
+	// Batch 3: Advanced Report Engine
+	reportEngine := service.NewReportEngine(db.Pool, fileStore)
+
+	// Batch 3: DSR Service
+	dsrSvc := service.NewDSRService(db.Pool)
+
+	// Batch 3: NIS2 Service
+	nis2Svc := service.NewNIS2Service(db.Pool)
+
+	// Batch 3: Continuous Monitoring
+	evidenceCollector := service.NewEvidenceCollector(db.Pool, jobQueue)
+	complianceMonitor := service.NewComplianceMonitor(db.Pool, jobQueue)
+	driftDetector := service.NewDriftDetector(db.Pool, jobQueue)
+
 	// ── Handlers ─────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, cfg.App.Version)
 	authH := handler.NewAuthHandler(authSvc)
@@ -64,6 +100,13 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	settingsH := handler.NewSettingsHandler(userRepo, orgRepo, authSvc)
 	onboardH := handler.NewOnboardingHandler(onboardingSvc)
 	controlH := handler.NewControlHandler(db)
+
+	// Batch 3 Handlers
+	notifH := handler.NewNotificationHandler(notificationEngine, db.Pool)
+	reportV2H := handler.NewReportHandlerV2(reportEngine)
+	dsrH := handler.NewDSRHandler(dsrSvc)
+	nis2H := handler.NewNIS2Handler(nis2Svc)
+	monitorH := handler.NewMonitoringHandler(evidenceCollector, complianceMonitor, driftDetector)
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -161,9 +204,114 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 			// ── Dashboard ────────────────────────────────
 			r.Get("/dashboard/summary", dashH.Summary)
 
-			// ── Reports ──────────────────────────────────
+			// ── Reports (Legacy) ────────────────────────
 			r.Get("/reports/compliance", reportH.ComplianceReport)
 			r.Get("/reports/risk", reportH.RiskReport)
+
+			// ── Reports (Advanced — Batch 3) ────────────
+			r.Route("/reports", func(r chi.Router) {
+				r.Post("/generate", reportV2H.GenerateReport)
+				r.Get("/history", reportV2H.ListHistory)
+				r.Get("/runs/{id}", reportV2H.GetReportStatus)
+				r.Get("/download/{id}", reportV2H.DownloadReport)
+				r.Route("/definitions", func(r chi.Router) {
+					r.Get("/", reportV2H.ListDefinitions)
+					r.Post("/", reportV2H.CreateDefinition)
+					r.Put("/{id}", reportV2H.UpdateDefinition)
+					r.Delete("/{id}", reportV2H.DeleteDefinition)
+					r.Post("/{id}/generate", reportV2H.GenerateFromDefinition)
+				})
+				r.Route("/schedules", func(r chi.Router) {
+					r.Get("/", reportV2H.ListSchedules)
+					r.Post("/", reportV2H.CreateSchedule)
+					r.Put("/{id}", reportV2H.UpdateSchedule)
+					r.Delete("/{id}", reportV2H.DeleteSchedule)
+				})
+			})
+
+			// ── Notifications (Batch 3) ─────────────────
+			r.Route("/notifications", func(r chi.Router) {
+				r.Get("/", notifH.ListNotifications)
+				r.Get("/unread-count", notifH.GetUnreadCount)
+				r.Put("/read-all", notifH.MarkAllRead)
+				r.Put("/{id}/read", notifH.MarkRead)
+				r.Get("/preferences", notifH.GetPreferences)
+				r.Put("/preferences", notifH.UpdatePreferences)
+				r.Route("/rules", func(r chi.Router) {
+					r.Get("/", notifH.ListRules)
+					r.Post("/", notifH.CreateRule)
+					r.Put("/{id}", notifH.UpdateRule)
+					r.Delete("/{id}", notifH.DeleteRule)
+				})
+				r.Route("/channels", func(r chi.Router) {
+					r.Get("/", notifH.ListChannels)
+					r.Post("/", notifH.CreateChannel)
+					r.Post("/{id}/test", notifH.TestChannel)
+				})
+			})
+
+			// ── GDPR DSR Management (Batch 3) ───────────
+			r.Route("/dsr", func(r chi.Router) {
+				r.Get("/", dsrH.ListRequests)
+				r.Post("/", dsrH.CreateRequest)
+				r.Get("/dashboard", dsrH.GetDashboard)
+				r.Get("/overdue", dsrH.GetOverdue)
+				r.Put("/tasks/{id}", dsrH.UpdateTask)
+				r.Get("/{id}", dsrH.GetRequest)
+				r.Put("/{id}", dsrH.UpdateRequest)
+				r.Post("/{id}/verify", dsrH.VerifyIdentity)
+				r.Post("/{id}/assign", dsrH.AssignRequest)
+				r.Post("/{id}/extend", dsrH.ExtendDeadline)
+				r.Post("/{id}/complete", dsrH.CompleteRequest)
+				r.Post("/{id}/reject", dsrH.RejectRequest)
+				r.Get("/{id}/tasks", dsrH.GetTasks)
+				r.Get("/{id}/audit-trail", dsrH.GetAuditTrail)
+			})
+
+			// ── NIS2 Compliance (Batch 3) ────────────────
+			r.Route("/nis2", func(r chi.Router) {
+				r.Get("/dashboard", nis2H.GetDashboard)
+				r.Get("/assessment", nis2H.GetAssessment)
+				r.Post("/assessment", nis2H.SubmitAssessment)
+				r.Route("/incidents", func(r chi.Router) {
+					r.Get("/", nis2H.ListIncidentReports)
+					r.Get("/{id}", nis2H.GetIncidentReport)
+					r.Post("/{id}/early-warning", nis2H.SubmitEarlyWarning)
+					r.Post("/{id}/notification", nis2H.SubmitNotification)
+					r.Post("/{id}/final-report", nis2H.SubmitFinalReport)
+				})
+				r.Route("/measures", func(r chi.Router) {
+					r.Get("/", nis2H.ListMeasures)
+					r.Put("/{id}", nis2H.UpdateMeasure)
+				})
+				r.Route("/management", func(r chi.Router) {
+					r.Get("/", nis2H.ListManagement)
+					r.Post("/", nis2H.RecordManagement)
+				})
+			})
+
+			// ── Continuous Monitoring (Batch 3) ──────────
+			r.Route("/monitoring", func(r chi.Router) {
+				r.Get("/dashboard", monitorH.GetDashboard)
+				r.Route("/evidence", func(r chi.Router) {
+					r.Get("/", monitorH.ListCollectionConfigs)
+					r.Post("/", monitorH.CreateCollectionConfig)
+					r.Put("/{id}", monitorH.UpdateCollectionConfig)
+					r.Post("/{id}/run", monitorH.RunCollectionNow)
+					r.Get("/{id}/runs", monitorH.ListCollectionRuns)
+				})
+				r.Route("/monitors", func(r chi.Router) {
+					r.Get("/", monitorH.ListMonitors)
+					r.Post("/", monitorH.CreateMonitor)
+					r.Put("/{id}", monitorH.UpdateMonitor)
+					r.Get("/{id}/results", monitorH.GetMonitorResults)
+				})
+				r.Route("/drift", func(r chi.Router) {
+					r.Get("/", monitorH.ListDriftEvents)
+					r.Post("/{id}/acknowledge", monitorH.AcknowledgeDrift)
+					r.Post("/{id}/resolve", monitorH.ResolveDrift)
+				})
+			})
 
 			// ── Settings (Admin Only) ────────────────────
 			r.Route("/settings", func(r chi.Router) {
