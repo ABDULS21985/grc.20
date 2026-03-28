@@ -271,3 +271,350 @@ export interface FrameworkScoreEntry {
   name: string;
   score: number;
 }
+
+// ── Notifications (Prompt 11) ────────────────────────
+export type NotificationChannelType = 'email' | 'in_app' | 'webhook' | 'slack' | 'teams';
+export type NotificationStatus = 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced';
+export type DigestFrequency = 'immediate' | 'hourly' | 'daily' | 'weekly';
+
+export interface NotificationChannel {
+  id: UUID;
+  channel_type: NotificationChannelType;
+  name: string;
+  configuration: Record<string, unknown>;
+  is_active: boolean;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface NotificationRule {
+  id: UUID;
+  name: string;
+  event_type: string;
+  severity_filter: string[] | null;
+  conditions: Record<string, unknown>;
+  channel_ids: UUID[];
+  recipient_type: 'role' | 'user' | 'owner' | 'assignee' | 'dpo' | 'ciso' | 'custom';
+  recipient_ids: UUID[];
+  template_id: UUID;
+  is_active: boolean;
+  cooldown_minutes: number;
+  escalation_after_minutes: number | null;
+  created_at: string;
+}
+
+export interface Notification {
+  id: UUID;
+  event_type: string;
+  subject: string;
+  body: string;
+  channel_type: NotificationChannelType;
+  status: NotificationStatus;
+  read_at: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: UUID;
+  event_type: string;
+  email_enabled: boolean;
+  in_app_enabled: boolean;
+  slack_enabled: boolean;
+  digest_frequency: DigestFrequency;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  quiet_hours_timezone: string | null;
+}
+
+// ── Reports (Prompt 12) ─────────────────────────────
+export type ReportType = 'compliance_status' | 'risk_register' | 'risk_heatmap' | 'audit_summary' | 'audit_findings' | 'incident_summary' | 'breach_register' | 'vendor_risk' | 'policy_status' | 'attestation_report' | 'gap_analysis' | 'cross_framework_mapping' | 'executive_summary' | 'kri_dashboard' | 'treatment_progress' | 'custom';
+export type ReportFormat = 'pdf' | 'xlsx' | 'csv' | 'json';
+export type ReportRunStatus = 'pending' | 'generating' | 'completed' | 'failed';
+export type ScheduleFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually';
+
+export interface ReportDefinition {
+  id: UUID;
+  name: string;
+  description: string;
+  report_type: ReportType;
+  format: ReportFormat;
+  filters: Record<string, unknown>;
+  sections: Record<string, unknown>[];
+  classification: string;
+  include_executive_summary: boolean;
+  include_appendices: boolean;
+  branding: Record<string, unknown>;
+  is_template: boolean;
+  created_at: string;
+}
+
+export interface ReportSchedule {
+  id: UUID;
+  report_definition_id: UUID;
+  name: string;
+  frequency: ScheduleFrequency;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  time_of_day: string;
+  timezone: string;
+  recipient_user_ids: UUID[];
+  recipient_emails: string[];
+  delivery_channel: 'email' | 'storage' | 'both';
+  is_active: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+}
+
+export interface ReportRun {
+  id: UUID;
+  report_definition_id: UUID;
+  schedule_id: UUID | null;
+  status: ReportRunStatus;
+  format: ReportFormat;
+  file_path: string | null;
+  file_size_bytes: number | null;
+  page_count: number | null;
+  generation_time_ms: number | null;
+  parameters: Record<string, unknown>;
+  generated_by: UUID | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+// ── GDPR DSR (Prompt 13) ────────────────────────────
+export type DSRRequestType = 'access' | 'erasure' | 'rectification' | 'portability' | 'restriction' | 'objection' | 'automated_decision';
+export type DSRStatus = 'received' | 'identity_verification' | 'in_progress' | 'extended' | 'completed' | 'rejected' | 'withdrawn';
+export type DSRPriority = 'standard' | 'urgent' | 'complex';
+export type DSRSLAStatus = 'on_track' | 'at_risk' | 'overdue';
+
+export interface DSRRequest {
+  id: UUID;
+  request_ref: string;
+  request_type: DSRRequestType;
+  status: DSRStatus;
+  priority: DSRPriority;
+  data_subject_name: string;
+  data_subject_email: string;
+  data_subject_id_verified: boolean;
+  request_description: string;
+  request_source: string;
+  received_date: string;
+  acknowledged_at: string | null;
+  response_deadline: string;
+  extended_deadline: string | null;
+  extension_reason: string | null;
+  assigned_to: UUID | null;
+  data_systems_affected: string[];
+  data_categories_affected: string[];
+  third_parties_notified: string[];
+  completed_at: string | null;
+  sla_status: DSRSLAStatus;
+  days_remaining: number;
+  was_extended: boolean;
+  was_completed_on_time: boolean | null;
+  created_at: string;
+}
+
+export interface DSRTask {
+  id: UUID;
+  dsr_request_id: UUID;
+  task_type: string;
+  description: string;
+  system_name: string | null;
+  assigned_to: UUID | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'not_applicable';
+  due_date: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  sort_order: number;
+}
+
+export interface DSRAuditEntry {
+  id: UUID;
+  action: string;
+  performed_by: UUID;
+  description: string;
+  created_at: string;
+}
+
+export interface DSRDashboard {
+  total_requests: number;
+  by_type: Record<string, number>;
+  by_status: Record<string, number>;
+  overdue_count: number;
+  at_risk_count: number;
+  avg_completion_days: number;
+  sla_compliance_rate: number;
+}
+
+// ── NIS2 (Prompt 14) ────────────────────────────────
+export type NIS2EntityType = 'essential' | 'important' | 'not_applicable';
+export type NIS2PhaseStatus = 'not_required' | 'pending' | 'submitted' | 'overdue';
+export type NIS2MeasureStatus = 'not_started' | 'in_progress' | 'implemented' | 'verified';
+
+export interface NIS2EntityAssessment {
+  id: UUID;
+  entity_type: NIS2EntityType;
+  sector: string;
+  sub_sector: string;
+  employee_count: number;
+  annual_turnover_eur: number;
+  assessment_date: string;
+  is_in_scope: boolean;
+  member_state: string;
+  competent_authority: string;
+  csirt_name: string;
+  csirt_contact_email: string;
+  csirt_reporting_url: string;
+  created_at: string;
+}
+
+export interface NIS2IncidentReport {
+  id: UUID;
+  incident_id: UUID;
+  report_ref: string;
+  early_warning_status: NIS2PhaseStatus;
+  early_warning_deadline: string;
+  early_warning_submitted_at: string | null;
+  notification_status: NIS2PhaseStatus;
+  notification_deadline: string;
+  notification_submitted_at: string | null;
+  final_report_status: NIS2PhaseStatus;
+  final_report_deadline: string;
+  final_report_submitted_at: string | null;
+  created_at: string;
+}
+
+export interface NIS2SecurityMeasure {
+  id: UUID;
+  measure_code: string;
+  measure_title: string;
+  measure_description: string;
+  article_reference: string;
+  implementation_status: NIS2MeasureStatus;
+  owner_user_id: UUID | null;
+  evidence_description: string | null;
+  last_assessed_at: string | null;
+  next_assessment_date: string | null;
+  linked_control_ids: UUID[];
+}
+
+export interface NIS2ManagementRecord {
+  id: UUID;
+  board_member_name: string;
+  board_member_role: string;
+  training_completed: boolean;
+  training_date: string | null;
+  training_provider: string | null;
+  risk_measures_approved: boolean;
+  approval_date: string | null;
+  next_training_due: string | null;
+}
+
+export interface NIS2Dashboard {
+  entity_type: NIS2EntityType;
+  is_in_scope: boolean;
+  measures_total: number;
+  measures_implemented: number;
+  measures_verified: number;
+  open_incidents: number;
+  overdue_reports: number;
+  management_trained: number;
+  management_total: number;
+}
+
+// ── Continuous Monitoring (Prompt 15) ────────────────
+export type CollectionMethod = 'manual' | 'api_fetch' | 'file_watch' | 'script_execution' | 'email_parse' | 'webhook_receive';
+export type MonitorType = 'control_effectiveness' | 'evidence_freshness' | 'kri_threshold' | 'policy_attestation' | 'vendor_assessment' | 'training_completion';
+export type MonitorStatus = 'passing' | 'failing' | 'unknown';
+export type DriftType = 'control_degraded' | 'evidence_expired' | 'kri_breached' | 'policy_unattested' | 'vendor_overdue' | 'training_expired' | 'score_dropped';
+
+export interface EvidenceCollectionConfig {
+  id: UUID;
+  control_implementation_id: UUID;
+  name: string;
+  collection_method: CollectionMethod;
+  schedule_cron: string;
+  schedule_description: string;
+  acceptance_criteria: Record<string, unknown>[];
+  failure_threshold: number;
+  auto_update_control_status: boolean;
+  is_active: boolean;
+  last_collection_at: string | null;
+  last_collection_status: string | null;
+  next_collection_at: string | null;
+  consecutive_failures: number;
+  created_at: string;
+}
+
+export interface EvidenceCollectionRun {
+  id: UUID;
+  config_id: UUID;
+  status: 'scheduled' | 'running' | 'success' | 'failed' | 'timeout' | 'validation_failed';
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+  all_criteria_passed: boolean | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface ComplianceMonitor {
+  id: UUID;
+  name: string;
+  monitor_type: MonitorType;
+  target_entity_type: string;
+  target_entity_id: UUID;
+  check_frequency_cron: string;
+  conditions: Record<string, unknown>;
+  alert_on_failure: boolean;
+  alert_severity: string;
+  is_active: boolean;
+  last_check_at: string | null;
+  last_check_status: MonitorStatus;
+  consecutive_failures: number;
+  failure_since: string | null;
+  created_at: string;
+}
+
+export interface ComplianceMonitorResult {
+  id: UUID;
+  monitor_id: UUID;
+  status: 'passing' | 'failing';
+  check_time: string;
+  message: string | null;
+  created_at: string;
+}
+
+export interface DriftEvent {
+  id: UUID;
+  drift_type: DriftType;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  entity_type: string;
+  entity_id: UUID;
+  entity_ref: string;
+  description: string;
+  previous_state: string;
+  current_state: string;
+  detected_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: UUID | null;
+  resolved_at: string | null;
+  resolved_by: UUID | null;
+  resolution_notes: string | null;
+  created_at: string;
+}
+
+export interface MonitoringDashboard {
+  health_status: 'healthy' | 'degraded' | 'critical';
+  active_drift_events: number;
+  drift_by_severity: Record<string, number>;
+  evidence_success_rate_24h: number;
+  evidence_success_rate_7d: number;
+  monitors_passing: number;
+  monitors_failing: number;
+  monitors_total: number;
+}

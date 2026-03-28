@@ -247,13 +247,274 @@ class ApiClient {
     return this.request<any>('/assets/stats');
   }
 
-  // ── Reports ───────────────────────────────────────
+  // ── Reports (Basic) ────────────────────────────────
   async getComplianceReport() {
     return this.request<any>('/reports/compliance');
   }
 
   async getRiskReport() {
     return this.request<any>('/reports/risk');
+  }
+
+  // ── Reports (Advanced — Prompt 12) ────────────────
+  async generateReport(data: any) {
+    return this.request<any>('/reports/generate', { method: 'POST', body: data });
+  }
+
+  async getReportStatus(id: string) {
+    return this.request<any>(`/reports/status/${id}`);
+  }
+
+  async getReportDownloadUrl(id: string) {
+    return `${API_BASE}/reports/download/${id}`;
+  }
+
+  async getReportDefinitions() {
+    return this.request<any>('/reports/definitions');
+  }
+
+  async createReportDefinition(data: any) {
+    return this.request<any>('/reports/definitions', { method: 'POST', body: data });
+  }
+
+  async updateReportDefinition(id: string, data: any) {
+    return this.request<any>(`/reports/definitions/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteReportDefinition(id: string) {
+    return this.request<any>(`/reports/definitions/${id}`, { method: 'DELETE' });
+  }
+
+  async generateFromDefinition(id: string) {
+    return this.request<any>(`/reports/definitions/${id}/generate`, { method: 'POST' });
+  }
+
+  async getReportSchedules() {
+    return this.request<any>('/reports/schedules');
+  }
+
+  async createReportSchedule(data: any) {
+    return this.request<any>('/reports/schedules', { method: 'POST', body: data });
+  }
+
+  async updateReportSchedule(id: string, data: any) {
+    return this.request<any>(`/reports/schedules/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteReportSchedule(id: string) {
+    return this.request<any>(`/reports/schedules/${id}`, { method: 'DELETE' });
+  }
+
+  async getReportHistory(page = 1) {
+    return this.request<any>(`/reports/history?page=${page}`);
+  }
+
+  // ── Notifications (Prompt 11) ─────────────────────
+  async getNotifications(page = 1, pageSize = 10) {
+    return this.request<any>(`/notifications?page=${page}&page_size=${pageSize}`);
+  }
+
+  async markNotificationRead(id: string) {
+    return this.request<any>(`/notifications/${id}/read`, { method: 'PUT' });
+  }
+
+  async markAllNotificationsRead() {
+    return this.request<any>('/notifications/read-all', { method: 'PUT' });
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request<any>('/notifications/unread-count');
+  }
+
+  async getNotificationPreferences() {
+    return this.request<any>('/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(data: any) {
+    return this.request<any>('/notifications/preferences', { method: 'PUT', body: data });
+  }
+
+  async getNotificationRules() {
+    return this.request<any>('/settings/notification-rules');
+  }
+
+  async createNotificationRule(data: any) {
+    return this.request<any>('/settings/notification-rules', { method: 'POST', body: data });
+  }
+
+  async updateNotificationRule(id: string, data: any) {
+    return this.request<any>(`/settings/notification-rules/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteNotificationRule(id: string) {
+    return this.request<any>(`/settings/notification-rules/${id}`, { method: 'DELETE' });
+  }
+
+  async getNotificationChannels() {
+    return this.request<any>('/settings/notification-channels');
+  }
+
+  async createNotificationChannel(data: any) {
+    return this.request<any>('/settings/notification-channels', { method: 'POST', body: data });
+  }
+
+  async testNotificationChannel(id: string) {
+    return this.request<any>(`/settings/notification-channels/${id}/test`, { method: 'POST' });
+  }
+
+  // ── GDPR DSR (Prompt 13) ─────────────────────────
+  async getDSRRequests(page = 1, pageSize = 20) {
+    return this.request<any>(`/dsr?page=${page}&page_size=${pageSize}`);
+  }
+
+  async getDSRRequest(id: string) {
+    return this.request<any>(`/dsr/${id}`);
+  }
+
+  async createDSRRequest(data: any) {
+    return this.request<any>('/dsr', { method: 'POST', body: data });
+  }
+
+  async updateDSRRequest(id: string, data: any) {
+    return this.request<any>(`/dsr/${id}`, { method: 'PUT', body: data });
+  }
+
+  async verifyDSRIdentity(id: string, data: any) {
+    return this.request<any>(`/dsr/${id}/verify-identity`, { method: 'POST', body: data });
+  }
+
+  async assignDSR(id: string, data: any) {
+    return this.request<any>(`/dsr/${id}/assign`, { method: 'POST', body: data });
+  }
+
+  async extendDSRDeadline(id: string, data: any) {
+    return this.request<any>(`/dsr/${id}/extend`, { method: 'POST', body: data });
+  }
+
+  async completeDSR(id: string, data: any) {
+    return this.request<any>(`/dsr/${id}/complete`, { method: 'POST', body: data });
+  }
+
+  async rejectDSR(id: string, data: any) {
+    return this.request<any>(`/dsr/${id}/reject`, { method: 'POST', body: data });
+  }
+
+  async updateDSRTask(requestId: string, taskId: string, data: any) {
+    return this.request<any>(`/dsr/${requestId}/tasks/${taskId}`, { method: 'PUT', body: data });
+  }
+
+  async getDSRDashboard() {
+    return this.request<any>('/dsr/dashboard');
+  }
+
+  async getDSROverdue() {
+    return this.request<any>('/dsr/overdue');
+  }
+
+  async getDSRTemplates() {
+    return this.request<any>('/dsr/templates');
+  }
+
+  // ── NIS2 (Prompt 14) ─────────────────────────────
+  async getNIS2Assessment() {
+    return this.request<any>('/nis2/assessment');
+  }
+
+  async submitNIS2Assessment(data: any) {
+    return this.request<any>('/nis2/assessment', { method: 'POST', body: data });
+  }
+
+  async getNIS2Incidents() {
+    return this.request<any>('/nis2/incidents');
+  }
+
+  async getNIS2Incident(id: string) {
+    return this.request<any>(`/nis2/incidents/${id}`);
+  }
+
+  async submitNIS2EarlyWarningReport(id: string, data: any) {
+    return this.request<any>(`/nis2/incidents/${id}/early-warning`, { method: 'POST', body: data });
+  }
+
+  async submitNIS2Notification(id: string, data: any) {
+    return this.request<any>(`/nis2/incidents/${id}/notification`, { method: 'POST', body: data });
+  }
+
+  async submitNIS2FinalReport(id: string, data: any) {
+    return this.request<any>(`/nis2/incidents/${id}/final-report`, { method: 'POST', body: data });
+  }
+
+  async getNIS2Measures() {
+    return this.request<any>('/nis2/measures');
+  }
+
+  async updateNIS2Measure(id: string, data: any) {
+    return this.request<any>(`/nis2/measures/${id}`, { method: 'PUT', body: data });
+  }
+
+  async getNIS2Management() {
+    return this.request<any>('/nis2/management');
+  }
+
+  async createNIS2ManagementRecord(data: any) {
+    return this.request<any>('/nis2/management', { method: 'POST', body: data });
+  }
+
+  async getNIS2Dashboard() {
+    return this.request<any>('/nis2/dashboard');
+  }
+
+  // ── Continuous Monitoring (Prompt 15) ─────────────
+  async getMonitoringConfigs() {
+    return this.request<any>('/monitoring/configs');
+  }
+
+  async createMonitoringConfig(data: any) {
+    return this.request<any>('/monitoring/configs', { method: 'POST', body: data });
+  }
+
+  async updateMonitoringConfig(id: string, data: any) {
+    return this.request<any>(`/monitoring/configs/${id}`, { method: 'PUT', body: data });
+  }
+
+  async runMonitoringConfigNow(id: string) {
+    return this.request<any>(`/monitoring/configs/${id}/run-now`, { method: 'POST' });
+  }
+
+  async getMonitoringConfigHistory(id: string) {
+    return this.request<any>(`/monitoring/configs/${id}/history`);
+  }
+
+  async getComplianceMonitors() {
+    return this.request<any>('/monitoring/monitors');
+  }
+
+  async createComplianceMonitor(data: any) {
+    return this.request<any>('/monitoring/monitors', { method: 'POST', body: data });
+  }
+
+  async updateComplianceMonitor(id: string, data: any) {
+    return this.request<any>(`/monitoring/monitors/${id}`, { method: 'PUT', body: data });
+  }
+
+  async getMonitorResults(id: string) {
+    return this.request<any>(`/monitoring/monitors/${id}/results`);
+  }
+
+  async getDriftEvents() {
+    return this.request<any>('/monitoring/drift');
+  }
+
+  async acknowledgeDrift(id: string) {
+    return this.request<any>(`/monitoring/drift/${id}/acknowledge`, { method: 'PUT' });
+  }
+
+  async resolveDrift(id: string, data: any) {
+    return this.request<any>(`/monitoring/drift/${id}/resolve`, { method: 'PUT', body: data });
+  }
+
+  async getMonitoringDashboard() {
+    return this.request<any>('/monitoring/dashboard');
   }
 
   // ── Settings ──────────────────────────────────────
