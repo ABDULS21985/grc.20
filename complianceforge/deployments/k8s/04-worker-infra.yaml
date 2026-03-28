@@ -1,0 +1,185 @@
+---
+# ComplianceForge Worker — Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: complianceforge-worker
+  namespace: complianceforge
+  labels:
+    app.kubernetes.io/name: complianceforge-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: complianceforge-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: complianceforge-worker
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: complianceforge
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: worker
+          image: complianceforge/api:latest
+          command: ["/app/worker"]
+          envFrom:
+            - configMapRef:
+                name: complianceforge-config
+            - secretRef:
+                name: complianceforge-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: uploads
+              mountPath: /data/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: complianceforge-uploads
+
+---
+# Persistent Volume Claim — File Uploads (EU region)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: complianceforge-uploads
+  namespace: complianceforge
+  labels:
+    app.kubernetes.io/name: complianceforge
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: complianceforge
+  namespace: complianceforge
+  labels:
+    app.kubernetes.io/name: complianceforge
+
+---
+# Ingress — TLS-terminated HTTPS with EU data residency
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: complianceforge-ingress
+  namespace: complianceforge
+  labels:
+    app.kubernetes.io/name: complianceforge
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "20"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "50"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # HSTS header for security
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Permissions-Policy: camera=(), microphone=(), geolocation=()";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.complianceforge.io
+      secretName: complianceforge-tls
+  rules:
+    - host: api.complianceforge.io
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: complianceforge-api
+                port:
+                  name: http
+
+---
+# Network Policy — Restrict traffic between pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: complianceforge-network-policy
+  namespace: complianceforge
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: complianceforge-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    # Allow DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Allow Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    # Allow SMTP (outbound email)
+    - to: []
+      ports:
+        - port: 587
+          protocol: TCP
+        - port: 465
+          protocol: TCP
+
+---
+# Pod Disruption Budget — Ensure availability during rollouts
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: complianceforge-api-pdb
+  namespace: complianceforge
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: complianceforge-api

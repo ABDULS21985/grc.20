@@ -1,0 +1,46 @@
+---
+# ComplianceForge GRC Platform — Kubernetes Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: complianceforge
+  labels:
+    app.kubernetes.io/name: complianceforge
+    app.kubernetes.io/part-of: complianceforge-grc
+
+---
+# Configuration (non-sensitive)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: complianceforge-config
+  namespace: complianceforge
+  labels:
+    app.kubernetes.io/name: complianceforge
+data:
+  APP_NAME: "complianceforge"
+  APP_ENV: "production"
+  APP_PORT: "8080"
+  APP_HOST: "0.0.0.0"
+  APP_VERSION: "1.0.0"
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "complianceforge"
+  DB_SSLMODE: "require"
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "10"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  JWT_ACCESS_TOKEN_EXPIRY: "15m"
+  JWT_REFRESH_TOKEN_EXPIRY: "168h"
+  STORAGE_DRIVER: "local"
+  STORAGE_LOCAL_PATH: "/data/uploads"
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW: "60s"
+  DATA_RESIDENCY_REGION: "EU"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  SMTP_PORT: "587"
+  SMTP_FROM: "noreply@complianceforge.io"
+  SMTP_FROM_NAME: "ComplianceForge"

@@ -1,0 +1,781 @@
+openapi: 3.0.3
+info:
+  title: ComplianceForge GRC Platform API
+  description: |
+    Enterprise Governance, Risk & Compliance Management API.
+    
+    Supports ISO/IEC 27001:2022, UK GDPR, NCSC CAF, Cyber Essentials,
+    NIST SP 800-53, NIST CSF 2.0, PCI DSS v4.0, ITIL 4, and COBIT 2019.
+    
+    Built for European enterprises with multi-tenant architecture and
+    GDPR-compliant data residency.
+  version: 1.0.0
+  contact:
+    name: ComplianceForge API Support
+    email: api-support@complianceforge.io
+  license:
+    name: Proprietary
+    
+servers:
+  - url: https://api.complianceforge.io/api/v1
+    description: Production (EU — Frankfurt)
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+
+tags:
+  - name: Health
+    description: System health and readiness
+  - name: Auth
+    description: Authentication and user management
+  - name: Frameworks
+    description: Compliance framework management
+  - name: Compliance
+    description: Compliance scoring, gap analysis, cross-mapping
+  - name: Risks
+    description: Enterprise risk register management
+  - name: Policies
+    description: Policy lifecycle management
+  - name: Audits
+    description: Audit planning and findings management
+  - name: Incidents
+    description: Incident management with GDPR/NIS2 breach reporting
+  - name: Vendors
+    description: Third-party vendor risk management
+  - name: Assets
+    description: Asset inventory management
+  - name: Dashboard
+    description: Executive dashboard and summaries
+  - name: Reports
+    description: Report generation
+  - name: Settings
+    description: Organization settings, users, roles (admin only)
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ── Health ──────────────────────────────────────────
+  /health:
+    get:
+      tags: [Health]
+      summary: System health check
+      security: []
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  version: { type: string, example: "1.0.0" }
+
+  /ready:
+    get:
+      tags: [Health]
+      summary: Kubernetes readiness probe
+      security: []
+      responses:
+        '200':
+          description: System is ready
+        '503':
+          description: System is not ready
+
+  # ── Auth ────────────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate user and obtain JWT tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 12 }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current user info
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create a new user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+        '409':
+          description: Email already exists
+
+  # ── Frameworks ──────────────────────────────────────
+  /frameworks:
+    get:
+      tags: [Frameworks]
+      summary: List all compliance frameworks
+      description: Returns ISO 27001, UK GDPR, NIST CSF, PCI DSS, Cyber Essentials, COBIT, ITIL, NCSC CAF, NIST 800-53
+      responses:
+        '200':
+          description: List of frameworks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkList'
+
+  /frameworks/{id}:
+    get:
+      tags: [Frameworks]
+      summary: Get framework details with domains
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Framework details
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /frameworks/{id}/controls:
+    get:
+      tags: [Frameworks]
+      summary: List controls for a framework (paginated)
+      parameters:
+        - $ref: '#/components/parameters/ID'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated controls
+
+  /frameworks/controls/search:
+    get:
+      tags: [Frameworks]
+      summary: Full-text search across all framework controls
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+          description: Search query (e.g. "encryption", "access control", "backup")
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: Search results
+
+  # ── Compliance ──────────────────────────────────────
+  /compliance/scores:
+    get:
+      tags: [Compliance]
+      summary: Get compliance scores per adopted framework
+      responses:
+        '200':
+          description: Compliance scores by framework
+
+  /compliance/gaps:
+    get:
+      tags: [Compliance]
+      summary: Gap analysis — controls not fully implemented
+      parameters:
+        - name: framework_id
+          in: query
+          schema: { type: string, format: uuid }
+          description: Optional filter by framework
+      responses:
+        '200':
+          description: Gap analysis results
+
+  /compliance/cross-mapping:
+    get:
+      tags: [Compliance]
+      summary: Cross-framework coverage map
+      description: Shows how implementing one framework covers controls in other frameworks
+      responses:
+        '200':
+          description: Cross-framework mappings
+
+  # ── Risks ───────────────────────────────────────────
+  /risks:
+    get:
+      tags: [Risks]
+      summary: List risk register (paginated)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortDir'
+      responses:
+        '200':
+          description: Paginated risks
+    post:
+      tags: [Risks]
+      summary: Create a new risk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRiskRequest'
+      responses:
+        '201':
+          description: Risk created with auto-calculated scores
+
+  /risks/{id}:
+    get:
+      tags: [Risks]
+      summary: Get risk detail
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Risk detail
+
+  /risks/heatmap:
+    get:
+      tags: [Risks]
+      summary: Risk heatmap data for visualization
+      responses:
+        '200':
+          description: Heatmap entries with likelihood/impact coordinates
+
+  # ── Policies ────────────────────────────────────────
+  /policies:
+    get:
+      tags: [Policies]
+      summary: List policies (paginated)
+      responses:
+        '200':
+          description: Paginated policies
+    post:
+      tags: [Policies]
+      summary: Create a new policy with first version
+      responses:
+        '201':
+          description: Policy created
+
+  /policies/{id}:
+    get:
+      tags: [Policies]
+      summary: Get policy detail
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Policy detail
+
+  /policies/{id}/publish:
+    post:
+      tags: [Policies]
+      summary: Publish an approved policy
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Policy published
+
+  /policies/{id}/attest:
+    post:
+      tags: [Policies]
+      summary: Submit policy attestation (acknowledge)
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '201':
+          description: Attestation recorded
+
+  /policies/attestations/stats:
+    get:
+      tags: [Policies]
+      summary: Get attestation completion statistics
+      responses:
+        '200':
+          description: Attestation stats
+
+  # ── Audits ──────────────────────────────────────────
+  /audits:
+    get:
+      tags: [Audits]
+      summary: List audits (paginated)
+      responses:
+        '200':
+          description: Paginated audits
+    post:
+      tags: [Audits]
+      summary: Plan a new audit
+      responses:
+        '201':
+          description: Audit created
+
+  /audits/{id}:
+    get:
+      tags: [Audits]
+      summary: Get audit with findings
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Audit detail with findings
+
+  /audits/{id}/findings:
+    get:
+      tags: [Audits]
+      summary: List findings for an audit
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Audit findings
+    post:
+      tags: [Audits]
+      summary: Add a finding to an audit
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '201':
+          description: Finding created
+
+  # ── Incidents ───────────────────────────────────────
+  /incidents:
+    get:
+      tags: [Incidents]
+      summary: List incidents (paginated)
+      responses:
+        '200':
+          description: Paginated incidents
+    post:
+      tags: [Incidents]
+      summary: Report a new incident
+      description: |
+        Creates an incident. If `is_data_breach` is true, automatically sets
+        the GDPR 72-hour notification deadline (Article 33).
+        If `is_nis2_reportable` is true, provides NIS2 reporting guidance.
+      responses:
+        '201':
+          description: Incident reported with regulatory context
+
+  /incidents/{id}:
+    get:
+      tags: [Incidents]
+      summary: Get incident detail with breach notification status
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Incident detail
+
+  /incidents/{id}/notify-dpa:
+    post:
+      tags: [Incidents]
+      summary: Record DPA notification (GDPR Article 33)
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: DPA notification recorded
+
+  /incidents/{id}/nis2-early-warning:
+    post:
+      tags: [Incidents]
+      summary: Submit NIS2 24-hour early warning (Article 23)
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: NIS2 early warning recorded
+
+  /incidents/stats:
+    get:
+      tags: [Incidents]
+      summary: Incident dashboard statistics
+      responses:
+        '200':
+          description: Incident metrics
+
+  /incidents/breaches/urgent:
+    get:
+      tags: [Incidents]
+      summary: Data breaches approaching 72-hour GDPR deadline
+      responses:
+        '200':
+          description: Urgent breaches requiring notification
+
+  # ── Vendors ─────────────────────────────────────────
+  /vendors:
+    get:
+      tags: [Vendors]
+      summary: List vendors (paginated)
+      responses:
+        '200':
+          description: Paginated vendors
+    post:
+      tags: [Vendors]
+      summary: Onboard a new vendor
+      description: Creates vendor with GDPR DPA requirements if data processing is flagged
+      responses:
+        '201':
+          description: Vendor onboarded with compliance requirements
+
+  /vendors/{id}:
+    get:
+      tags: [Vendors]
+      summary: Get vendor detail with compliance warnings
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Vendor detail
+
+  /vendors/stats:
+    get:
+      tags: [Vendors]
+      summary: Vendor risk dashboard statistics
+      responses:
+        '200':
+          description: Vendor risk metrics
+
+  # ── Assets ──────────────────────────────────────────
+  /assets:
+    get:
+      tags: [Assets]
+      summary: List assets (paginated)
+      responses:
+        '200':
+          description: Paginated assets
+    post:
+      tags: [Assets]
+      summary: Register a new asset
+      responses:
+        '201':
+          description: Asset registered
+
+  /assets/{id}:
+    get:
+      tags: [Assets]
+      summary: Get asset detail
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Asset detail
+
+  /assets/stats:
+    get:
+      tags: [Assets]
+      summary: Asset inventory statistics
+      responses:
+        '200':
+          description: Asset metrics
+
+  # ── Dashboard ───────────────────────────────────────
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Executive dashboard summary
+      description: |
+        Aggregates compliance scores, risk overview, open incidents,
+        overdue findings, policy review status, and vendor risk metrics
+      responses:
+        '200':
+          description: Dashboard summary
+
+  # ── Reports ─────────────────────────────────────────
+  /reports/compliance:
+    get:
+      tags: [Reports]
+      summary: Generate compliance status report
+      responses:
+        '200':
+          description: Compliance report data
+
+  /reports/risk:
+    get:
+      tags: [Reports]
+      summary: Generate risk register report
+      responses:
+        '200':
+          description: Risk report data
+
+  # ── Settings ────────────────────────────────────────
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Get organization settings
+      responses:
+        '200':
+          description: Organization details
+    put:
+      tags: [Settings]
+      summary: Update organization settings
+      responses:
+        '200':
+          description: Settings updated
+
+  /settings/users:
+    get:
+      tags: [Settings]
+      summary: List organization users
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated users
+    post:
+      tags: [Settings]
+      summary: Create a new user
+      responses:
+        '201':
+          description: User created
+
+  /settings/users/{id}:
+    get:
+      tags: [Settings]
+      summary: Get user detail with roles
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: User detail
+    put:
+      tags: [Settings]
+      summary: Update user profile
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: User updated
+    delete:
+      tags: [Settings]
+      summary: Deactivate user
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: User deactivated
+
+  /settings/users/{id}/roles:
+    post:
+      tags: [Settings]
+      summary: Assign role to user
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Role assigned
+
+  /settings/roles:
+    get:
+      tags: [Settings]
+      summary: List available roles
+      responses:
+        '200':
+          description: System and custom roles
+
+  /settings/audit-log:
+    get:
+      tags: [Settings]
+      summary: View immutable audit trail
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated audit log entries
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/login
+
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1, minimum: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+    SortBy:
+      name: sort_by
+      in: query
+      schema: { type: string, default: created_at }
+    SortDir:
+      name: sort_dir
+      in: query
+      schema: { type: string, enum: [asc, desc], default: desc }
+
+  schemas:
+    LoginResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer, description: "Seconds until token expires" }
+        token_type: { type: string, example: Bearer }
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+        job_title: { type: string }
+        department: { type: string }
+        status: { type: string, enum: [active, inactive, locked, pending_verification] }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        is_system_role: { type: boolean }
+
+    CreateUserRequest:
+      type: object
+      required: [email, password, first_name, last_name, role_ids]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 12 }
+        first_name: { type: string }
+        last_name: { type: string }
+        job_title: { type: string }
+        department: { type: string }
+        role_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    CreateRiskRequest:
+      type: object
+      required: [title, risk_category_id, risk_source, owner_user_id, inherent_likelihood, inherent_impact, review_frequency]
+      properties:
+        title: { type: string, minLength: 5, maxLength: 500 }
+        description: { type: string }
+        risk_category_id: { type: string, format: uuid }
+        risk_source: { type: string, enum: [internal, external, third_party, regulatory] }
+        owner_user_id: { type: string, format: uuid }
+        inherent_likelihood: { type: integer, minimum: 1, maximum: 5 }
+        inherent_impact: { type: integer, minimum: 1, maximum: 5 }
+        residual_likelihood: { type: integer, minimum: 1, maximum: 5 }
+        residual_impact: { type: integer, minimum: 1, maximum: 5 }
+        financial_impact_eur: { type: number }
+        risk_velocity: { type: string, enum: [immediate, fast, moderate, slow] }
+        review_frequency: { type: string, enum: [monthly, quarterly, semi_annually, annually] }
+
+    FrameworkList:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Framework'
+
+    Framework:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: ISO27001 }
+        name: { type: string, example: "ISO 27001" }
+        version: { type: string, example: "2022" }
+        issuing_body: { type: string }
+        category: { type: string, enum: [security, privacy, governance, risk, operational] }
+        total_controls: { type: integer }
+        is_active: { type: boolean }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total_items: { type: integer }
+        total_pages: { type: integer }
+        has_next: { type: boolean }
+        has_prev: { type: boolean }
+
+    APIError:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error:
+                $ref: '#/components/schemas/APIError'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error:
+                $ref: '#/components/schemas/APIError'
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        X-RateLimit-Limit:
+          schema: { type: integer }
+        X-RateLimit-Remaining:
+          schema: { type: integer }
+        X-RateLimit-Reset:
+          schema: { type: integer }
+        Retry-After:
+          schema: { type: integer }
