@@ -1,0 +1,183 @@
+version: "3.8"
+
+# ============================================================
+# ComplianceForge GRC Platform — Production Docker Compose
+# ============================================================
+# Usage:
+#   cp .env.example .env  (and fill in values)
+#   docker compose -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+  # ============================================================
+  # API Server
+  # ============================================================
+  api:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.api
+    container_name: complianceforge-api
+    env_file: .env
+    environment:
+      APP_ENV: production
+      APP_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - complianceforge
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ============================================================
+  # Background Worker
+  # ============================================================
+  worker:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.api
+    container_name: complianceforge-worker
+    command: ["./worker"]
+    env_file: .env
+    environment:
+      APP_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - complianceforge
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ============================================================
+  # Next.js Frontend
+  # ============================================================
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    container_name: complianceforge-frontend
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - complianceforge
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ============================================================
+  # Nginx Reverse Proxy
+  # ============================================================
+  nginx:
+    image: nginx:alpine
+    container_name: complianceforge-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # Uncomment when SSL certificates are available:
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+    networks:
+      - complianceforge
+
+  # ============================================================
+  # PostgreSQL Database
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: complianceforge-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-complianceforge}
+      POSTGRES_USER: ${POSTGRES_USER:-complianceforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-complianceforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - complianceforge
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ============================================================
+  # Redis Cache & Queue
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: complianceforge-redis
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - complianceforge
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+
+networks:
+  complianceforge:
+    driver: bridge
