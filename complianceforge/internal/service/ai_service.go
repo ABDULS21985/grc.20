@@ -259,8 +259,8 @@ type GapAssessmentItem struct {
 	Recommendation  string `json:"recommendation"`
 }
 
-// EvidenceTemplate is the AI response for evidence template suggestions.
-type EvidenceTemplate struct {
+// AIEvidenceTemplateSuggestion is the AI response for evidence template suggestions.
+type AIEvidenceTemplateSuggestion struct {
 	InteractionID    uuid.UUID `json:"interaction_id"`
 	ControlCode      string    `json:"control_code"`
 	ControlTitle     string    `json:"control_title"`
@@ -571,7 +571,7 @@ func (s *AIService) AnalyseGapImpact(ctx context.Context, orgID uuid.UUID, gaps 
 }
 
 // SuggestEvidenceTemplate suggests evidence collection templates for a control.
-func (s *AIService) SuggestEvidenceTemplate(ctx context.Context, orgID uuid.UUID, controlCode, controlTitle string) (*EvidenceTemplate, error) {
+func (s *AIService) SuggestEvidenceTemplate(ctx context.Context, orgID uuid.UUID, controlCode, controlTitle string) (*AIEvidenceTemplateSuggestion, error) {
 	prompt := fmt.Sprintf(`You are a compliance expert. Suggest evidence collection templates for the following control.
 
 Control Code: %s
@@ -594,7 +594,7 @@ Respond with JSON only:
 		return s.fallbackEvidenceTemplate(controlCode, controlTitle), nil
 	}
 
-	var result EvidenceTemplate
+	var result AIEvidenceTemplateSuggestion
 	if err := extractJSONFromResponse(resp.Text, &result); err != nil {
 		log.Warn().Err(err).Msg("Failed to parse AI evidence template response")
 		return s.fallbackEvidenceTemplate(controlCode, controlTitle), nil
@@ -1225,8 +1225,8 @@ func (s *AIService) fallbackGapAnalysis(gaps []ComplianceGap) *GapImpactAnalysis
 	}
 }
 
-func (s *AIService) fallbackEvidenceTemplate(controlCode, controlTitle string) *EvidenceTemplate {
-	return &EvidenceTemplate{
+func (s *AIService) fallbackEvidenceTemplate(controlCode, controlTitle string) *AIEvidenceTemplateSuggestion {
+	return &AIEvidenceTemplateSuggestion{
 		ControlCode:  controlCode,
 		ControlTitle: controlTitle,
 		EvidenceTypes: []EvidenceTypeItem{

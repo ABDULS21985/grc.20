@@ -76,7 +76,7 @@ type CollectionRun struct {
 	CompletedAt             *time.Time      `json:"completed_at"`
 	DurationMs              int             `json:"duration_ms"`
 	CollectedData           json.RawMessage `json:"collected_data"`
-	ValidationResults       json.RawMessage `json:"validation_results"`
+	CriterionValidationResults       json.RawMessage `json:"validation_results"`
 	AllCriteriaPassed       *bool           `json:"all_criteria_passed"`
 	EvidenceID              *uuid.UUID      `json:"evidence_id"`
 	ErrorMessage            string          `json:"error_message"`
@@ -126,8 +126,8 @@ type AcceptanceCriterion struct {
 	Message  string `json:"message"`
 }
 
-// ValidationResult holds the outcome of evaluating a single criterion.
-type ValidationResult struct {
+// CriterionValidationResult holds the outcome of evaluating a single criterion.
+type CriterionValidationResult struct {
 	Field    string `json:"field"`
 	Operator string `json:"operator"`
 	Expected string `json:"expected"`
@@ -677,7 +677,7 @@ func (ec *EvidenceCollector) ProcessWebhookPayload(ctx context.Context, configID
 
 // ValidateEvidence evaluates collected data against a set of acceptance criteria.
 // Returns individual results and whether all criteria passed.
-func (ec *EvidenceCollector) ValidateEvidence(criteriaJSON json.RawMessage, collectedData json.RawMessage) ([]ValidationResult, bool) {
+func (ec *EvidenceCollector) ValidateEvidence(criteriaJSON json.RawMessage, collectedData json.RawMessage) ([]CriterionValidationResult, bool) {
 	var criteria []AcceptanceCriterion
 	if err := json.Unmarshal(criteriaJSON, &criteria); err != nil || len(criteria) == 0 {
 		// No criteria means auto-pass
@@ -687,14 +687,14 @@ func (ec *EvidenceCollector) ValidateEvidence(criteriaJSON json.RawMessage, coll
 	// Parse collected data into a flat map for field access
 	var dataMap map[string]interface{}
 	if err := json.Unmarshal(collectedData, &dataMap); err != nil {
-		return []ValidationResult{{
+		return []CriterionValidationResult{{
 			Field:   "_root",
 			Message: "collected data is not valid JSON object",
 			Passed:  false,
 		}}, false
 	}
 
-	results := make([]ValidationResult, 0, len(criteria))
+	results := make([]CriterionValidationResult, 0, len(criteria))
 	allPassed := true
 
 	for _, c := range criteria {
@@ -709,8 +709,8 @@ func (ec *EvidenceCollector) ValidateEvidence(criteriaJSON json.RawMessage, coll
 }
 
 // evaluateCriterion evaluates a single acceptance criterion against the data.
-func evaluateCriterion(c AcceptanceCriterion, data map[string]interface{}) ValidationResult {
-	result := ValidationResult{
+func evaluateCriterion(c AcceptanceCriterion, data map[string]interface{}) CriterionValidationResult {
+	result := CriterionValidationResult{
 		Field:    c.Field,
 		Operator: c.Operator,
 		Expected: c.Value,
@@ -982,7 +982,7 @@ func (ec *EvidenceCollector) ListRuns(ctx context.Context, orgID, configID uuid.
 		if err := rows.Scan(
 			&r.ID, &r.OrganizationID, &r.ConfigID, &r.ControlImplementationID,
 			&r.Status, &r.StartedAt, &r.CompletedAt, &r.DurationMs,
-			&r.CollectedData, &r.ValidationResults, &r.AllCriteriaPassed,
+			&r.CollectedData, &r.CriterionValidationResults, &r.AllCriteriaPassed,
 			&r.EvidenceID, &r.ErrorMessage, &r.Metadata, &r.CreatedAt,
 		); err != nil {
 			return nil, 0, err

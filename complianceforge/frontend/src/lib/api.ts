@@ -840,6 +840,243 @@ class ApiClient {
   async exportAsMarketplacePackage(data: any) {
     return this.request<any>('/marketplace/export', { method: 'POST', body: data });
   }
+
+  // ── Exception Management (Prompt 26) ───────────
+  async getExceptions(queryString = '') {
+    return this.request<any>(`/exceptions?${queryString}`);
+  }
+
+  async getException(id: string) {
+    return this.request<any>(`/exceptions/${id}`);
+  }
+
+  async createException(data: any) {
+    return this.request<any>('/exceptions', { method: 'POST', body: data });
+  }
+
+  async updateException(id: string, data: any) {
+    return this.request<any>(`/exceptions/${id}`, { method: 'PUT', body: data });
+  }
+
+  async submitExceptionForApproval(id: string) {
+    return this.request<any>(`/exceptions/${id}/submit`, { method: 'POST' });
+  }
+
+  async approveException(id: string, data: any) {
+    return this.request<any>(`/exceptions/${id}/approve`, { method: 'POST', body: data });
+  }
+
+  async rejectException(id: string, data: any) {
+    return this.request<any>(`/exceptions/${id}/reject`, { method: 'POST', body: data });
+  }
+
+  async revokeException(id: string, data: any) {
+    return this.request<any>(`/exceptions/${id}/revoke`, { method: 'POST', body: data });
+  }
+
+  async renewException(id: string, data: any) {
+    return this.request<any>(`/exceptions/${id}/renew`, { method: 'POST', body: data });
+  }
+
+  async reviewException(id: string, data: any) {
+    return this.request<any>(`/exceptions/${id}/review`, { method: 'POST', body: data });
+  }
+
+  async getExceptionReviews(id: string) {
+    return this.request<any>(`/exceptions/${id}/reviews`);
+  }
+
+  async getExceptionAuditTrail(id: string) {
+    return this.request<any>(`/exceptions/${id}/audit-trail`);
+  }
+
+  async getExceptionDashboard() {
+    return this.request<any>('/exceptions/dashboard');
+  }
+
+  async getExpiringExceptions(days = 30) {
+    return this.request<any>(`/exceptions/expiring?days=${days}`);
+  }
+
+  async getExceptionComplianceImpact(id: string) {
+    return this.request<any>(`/exceptions/impact/${id}`);
+  }
+
+  // ── Board Reporting & Governance (Prompt 30) ──
+  async getBoardDashboard() {
+    return this.request<any>('/board/dashboard');
+  }
+
+  async getBoardMembers() {
+    return this.request<any>('/board/members');
+  }
+
+  async createBoardMember(data: any) {
+    return this.request<any>('/board/members', { method: 'POST', body: data });
+  }
+
+  async updateBoardMember(id: string, data: any) {
+    return this.request<any>(`/board/members/${id}`, { method: 'PUT', body: data });
+  }
+
+  async getBoardMeetings(queryString = '') {
+    return this.request<any>(`/board/meetings?${queryString}`);
+  }
+
+  async createBoardMeeting(data: any) {
+    return this.request<any>('/board/meetings', { method: 'POST', body: data });
+  }
+
+  async getBoardMeeting(id: string) {
+    return this.request<any>(`/board/meetings/${id}`);
+  }
+
+  async updateBoardMeeting(id: string, data: any) {
+    return this.request<any>(`/board/meetings/${id}`, { method: 'PUT', body: data });
+  }
+
+  async generateBoardPack(meetingId: string) {
+    return this.request<any>(`/board/meetings/${meetingId}/generate-pack`, { method: 'POST' });
+  }
+
+  async downloadBoardPack(meetingId: string) {
+    return this.request<any>(`/board/meetings/${meetingId}/download-pack`);
+  }
+
+  async recordBoardDecision(data: any) {
+    return this.request<any>('/board/decisions', { method: 'POST', body: data });
+  }
+
+  async getBoardDecisions(queryString = '') {
+    return this.request<any>(`/board/decisions?${queryString}`);
+  }
+
+  async updateBoardDecisionAction(decisionId: string, data: any) {
+    return this.request<any>(`/board/decisions/${decisionId}/action`, { method: 'PUT', body: data });
+  }
+
+  async getBoardReports() {
+    return this.request<any>('/board/reports');
+  }
+
+  async generateBoardReport(data: any) {
+    return this.request<any>('/board/reports/generate', { method: 'POST', body: data });
+  }
+
+  async getNIS2GovernanceReport() {
+    return this.request<any>('/board/nis2-governance');
+  }
+
+  // ── TPRM — Questionnaires (Prompt 28) ──────────
+  async getQuestionnaires(page = 1, pageSize = 20, queryString = '') {
+    return this.request<any>(`/questionnaires?page=${page}&page_size=${pageSize}&${queryString}`);
+  }
+
+  async getQuestionnaire(id: string) {
+    return this.request<any>(`/questionnaires/${id}`);
+  }
+
+  async createQuestionnaire(data: any) {
+    return this.request<any>('/questionnaires', { method: 'POST', body: data });
+  }
+
+  async updateQuestionnaire(id: string, data: any) {
+    return this.request<any>(`/questionnaires/${id}`, { method: 'PUT', body: data });
+  }
+
+  async cloneQuestionnaire(id: string, data: any) {
+    return this.request<any>(`/questionnaires/${id}/clone`, { method: 'POST', body: data });
+  }
+
+  // ── TPRM — Vendor Assessments (Prompt 28) ──────
+  async getVendorAssessments(page = 1, pageSize = 20, queryString = '') {
+    return this.request<any>(`/vendor-assessments?page=${page}&page_size=${pageSize}&${queryString}`);
+  }
+
+  async getVendorAssessment(id: string) {
+    return this.request<any>(`/vendor-assessments/${id}`);
+  }
+
+  async sendVendorAssessment(data: any) {
+    return this.request<any>('/vendor-assessments', { method: 'POST', body: data });
+  }
+
+  async getVendorAssessmentDashboard() {
+    return this.request<any>('/vendor-assessments/dashboard');
+  }
+
+  async compareVendorAssessments(ids: string[]) {
+    return this.request<any>(`/vendor-assessments/compare?ids=${ids.join(',')}`);
+  }
+
+  async reviewVendorAssessment(id: string, data: any) {
+    return this.request<any>(`/vendor-assessments/${id}/review`, { method: 'POST', body: data });
+  }
+
+  async sendVendorAssessmentReminder(id: string) {
+    return this.request<any>(`/vendor-assessments/${id}/reminder`, { method: 'POST' });
+  }
+
+  // ── Evidence Template Library & Testing (Prompt 27) ──
+  async getEvidenceTemplates(queryString = '') {
+    return this.request<any>(`/evidence/templates?${queryString}`);
+  }
+
+  async getEvidenceTemplate(id: string) {
+    return this.request<any>(`/evidence/templates/${id}`);
+  }
+
+  async createEvidenceTemplate(data: any) {
+    return this.request<any>('/evidence/templates', { method: 'POST', body: data });
+  }
+
+  async getEvidenceRequirements(queryString = '') {
+    return this.request<any>(`/evidence/requirements?${queryString}`);
+  }
+
+  async generateEvidenceRequirements(data: any) {
+    return this.request<any>('/evidence/requirements/generate', { method: 'POST', body: data });
+  }
+
+  async updateEvidenceRequirement(id: string, data: any) {
+    return this.request<any>(`/evidence/requirements/${id}`, { method: 'PUT', body: data });
+  }
+
+  async validateEvidence(requirementId: string, data: any) {
+    return this.request<any>(`/evidence/requirements/${requirementId}/validate`, { method: 'POST', body: data });
+  }
+
+  async getEvidenceGaps() {
+    return this.request<any>('/evidence/gaps');
+  }
+
+  async getCollectionSchedule() {
+    return this.request<any>('/evidence/schedule');
+  }
+
+  async getEvidenceTestSuites() {
+    return this.request<any>('/evidence/test-suites');
+  }
+
+  async createEvidenceTestSuite(data: any) {
+    return this.request<any>('/evidence/test-suites', { method: 'POST', body: data });
+  }
+
+  async runEvidenceTestSuite(suiteId: string) {
+    return this.request<any>(`/evidence/test-suites/${suiteId}/run`, { method: 'POST' });
+  }
+
+  async getEvidenceTestRunResults(suiteId: string) {
+    return this.request<any>(`/evidence/test-suites/${suiteId}/results`);
+  }
+
+  async runPreAuditCheck(data: any) {
+    return this.request<any>('/evidence/pre-audit-check', { method: 'POST', body: data });
+  }
+
+  async getPreAuditReport(id: string) {
+    return this.request<any>(`/evidence/pre-audit-check/${id}/report`);
+  }
 }
 
 export const api = new ApiClient();

@@ -125,6 +125,24 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	analyticsQuery := service.NewAnalyticsQuery(db.Pool)
 	dashboardSvc := service.NewDashboardService(db.Pool)
 
+	// Batch 6: Exception Management
+	exceptionSvc := service.NewExceptionService(db.Pool)
+
+	// Batch 6: Board Reporting & Governance
+	boardSvc := service.NewBoardService(db.Pool)
+
+	// Batch 6: Data Classification, Data Mapping & ROPA
+	dataClassSvc := service.NewDataClassificationService(db.Pool)
+	ropaSvc := service.NewROPAService(db.Pool)
+
+	// Batch 6: TPRM — Questionnaires & Vendor Assessments
+	questionnaireSvc := service.NewQuestionnaireService(db.Pool)
+	vendorAssessmentSvc := service.NewVendorAssessmentService(db.Pool)
+
+	// Batch 6: Evidence Template Library & Automated Evidence Testing
+	evidenceTemplateSvc := service.NewEvidenceTemplateService(db.Pool)
+	evidenceTestRunner := service.NewEvidenceTestRunner(db.Pool)
+
 	// ── Handlers ─────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, cfg.App.Version)
 	authH := handler.NewAuthHandler(authSvc)
@@ -161,6 +179,17 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	regulatoryH := handler.NewRegulatoryHandler(regulatorySvc)
 	biaH := handler.NewBIAHandler(biaSvc, continuitySvc)
 	analyticsH := handler.NewAnalyticsHandler(analyticsEngine, analyticsQuery, dashboardSvc)
+
+	// Batch 6 Handlers
+	exceptionH := handler.NewExceptionHandler(exceptionSvc)
+	boardH := handler.NewBoardHandler(boardSvc)
+	boardPortalH := handler.NewBoardPortalHandler(boardSvc)
+
+	// Batch 6 Handlers (continued)
+	ropaH := handler.NewROPAHandler(dataClassSvc, ropaSvc)
+	questionnaireH := handler.NewQuestionnaireHandler(questionnaireSvc, vendorAssessmentSvc)
+	vendorPortalH := handler.NewVendorPortalHandler(vendorAssessmentSvc, questionnaireSvc)
+	evidenceTemplateH := handler.NewEvidenceTemplateHandler(evidenceTemplateSvc, evidenceTestRunner)
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -443,6 +472,39 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 			r.Route("/analytics", func(r chi.Router) {
 				analyticsH.RegisterRoutes(r)
 			})
+
+			// ── Exception Management (Batch 6) ──────────
+			r.Route("/exceptions", func(r chi.Router) {
+				exceptionH.RegisterRoutes(r)
+			})
+
+			// ── Board Reporting & Governance (Batch 6) ──
+			r.Route("/board", func(r chi.Router) {
+				boardH.RegisterRoutes(r)
+			})
+
+			// ── Data Classification, Mapping & ROPA (Batch 6) ──
+			r.Route("/data", func(r chi.Router) {
+				ropaH.RegisterRoutes(r)
+			})
+
+			// ── Evidence Template Library & Testing (Batch 6) ──
+			r.Route("/evidence", func(r chi.Router) {
+				evidenceTemplateH.RegisterRoutes(r)
+			})
+
+			// ── TPRM — Questionnaires & Vendor Assessments (Batch 6) ──
+			questionnaireH.RegisterRoutes(r)
+		})
+
+		// Public — Board Portal (token-based, no JWT)
+		r.Route("/board-portal", func(r chi.Router) {
+			boardPortalH.RegisterRoutes(r)
+		})
+
+		// Public — Vendor Assessment Portal (token-based, no JWT)
+		r.Route("/vendor-portal", func(r chi.Router) {
+			vendorPortalH.RegisterRoutes(r)
 		})
 	})
 
