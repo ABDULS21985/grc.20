@@ -751,8 +751,8 @@ func hashToken(token string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// HashToken is the exported version for use by handlers.
-func HashToken(token string) string {
+// HashPushToken is the exported version for use by handlers.
+func HashPushToken(token string) string {
 	return hashToken(token)
 }
 
@@ -774,12 +774,4 @@ func truncateToken(token string) string {
 		return token
 	}
 	return token[:12] + "..."
-}
-
-// min returns the smaller of two ints.
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

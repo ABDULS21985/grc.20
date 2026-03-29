@@ -125,6 +125,22 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	analyticsQuery := service.NewAnalyticsQuery(db.Pool)
 	dashboardSvc := service.NewDashboardService(db.Pool)
 
+	// Batch 7: Compliance Calendar
+	calendarSvc := service.NewCalendarService(db.Pool)
+
+	// Batch 7: Search & Knowledge Base
+	searchEngine := service.NewSearchEngine(db.Pool)
+	knowledgeSvc := service.NewKnowledgeService(db.Pool)
+
+	// Batch 7: Collaboration & Activity Feed
+	collaborationSvc := service.NewCollaborationService(db.Pool)
+
+	// Batch 7: Push Notifications & Mobile API
+	pushSvc := service.NewPushService(db.Pool, &service.StubPushProvider{})
+
+	// Batch 7: Branding & White-Labelling
+	brandingSvc := service.NewBrandingService(db.Pool)
+
 	// Batch 6: Exception Management
 	exceptionSvc := service.NewExceptionService(db.Pool)
 
@@ -179,6 +195,13 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	regulatoryH := handler.NewRegulatoryHandler(regulatorySvc)
 	biaH := handler.NewBIAHandler(biaSvc, continuitySvc)
 	analyticsH := handler.NewAnalyticsHandler(analyticsEngine, analyticsQuery, dashboardSvc)
+
+	// Batch 7 Handlers
+	calendarH := handler.NewCalendarHandler(calendarSvc)
+	searchH := handler.NewSearchHandler(searchEngine, knowledgeSvc)
+	collaborationH := handler.NewCollaborationHandler(collaborationSvc)
+	mobileH := handler.NewMobileHandler(db.Pool, pushSvc)
+	brandingH := handler.NewBrandingHandler(brandingSvc)
 
 	// Batch 6 Handlers
 	exceptionH := handler.NewExceptionHandler(exceptionSvc)
@@ -495,6 +518,23 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 
 			// ── TPRM — Questionnaires & Vendor Assessments (Batch 6) ──
 			questionnaireH.RegisterRoutes(r)
+
+			// ── Compliance Calendar (Batch 7) ───────────
+			r.Route("/calendar", func(r chi.Router) {
+				calendarH.RegisterRoutes(r)
+			})
+
+			// ── Search & Knowledge Base (Batch 7) ───────
+			searchH.RegisterRoutes(r)
+
+			// ── Collaboration & Activity Feed (Batch 7) ─
+			collaborationH.RegisterRoutes(r)
+
+			// ── Mobile API & Push Notifications (Batch 7)
+			mobileH.RegisterRoutes(r)
+
+			// ── Branding & White-Labelling (Batch 7) ────
+			brandingH.RegisterRoutes(r)
 		})
 
 		// Public — Board Portal (token-based, no JWT)
@@ -505,6 +545,11 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 		// Public — Vendor Assessment Portal (token-based, no JWT)
 		r.Route("/vendor-portal", func(r chi.Router) {
 			vendorPortalH.RegisterRoutes(r)
+		})
+
+		// Public — Calendar iCal Feed (token-based, no JWT)
+		r.Route("/calendar", func(r chi.Router) {
+			calendarH.RegisterPublicRoutes(r)
 		})
 	})
 

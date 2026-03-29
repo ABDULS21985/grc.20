@@ -56,6 +56,13 @@ func (h *MobileHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.GetOrgID(r.Context())
 	userID := middleware.GetUserID(r.Context())
 
+	type riskSummary struct {
+		Critical int `json:"critical"`
+		High     int `json:"high"`
+		Medium   int `json:"medium"`
+		Low      int `json:"low"`
+	}
+
 	type mobileDashboard struct {
 		ComplianceScore  float64     `json:"compliance_score"`
 		RiskCounts       riskSummary `json:"risk_counts"`
@@ -64,13 +71,6 @@ func (h *MobileHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		OverdueDeadlines int         `json:"overdue_deadlines"`
 		UnreadNotifs     int         `json:"unread_notifications"`
 		LastUpdated      string      `json:"last_updated"`
-	}
-
-	type riskSummary struct {
-		Critical int `json:"critical"`
-		High     int `json:"high"`
-		Medium   int `json:"medium"`
-		Low      int `json:"low"`
 	}
 
 	dash := mobileDashboard{
@@ -717,7 +717,7 @@ func (h *MobileHandler) UnregisterPushToken(w http.ResponseWriter, r *http.Reque
 	// Accept either token_hash directly or raw token (we hash it)
 	tokenHash := req.TokenHash
 	if tokenHash == "" && req.Token != "" {
-		tokenHash = service.HashToken(req.Token)
+		tokenHash = service.HashPushToken(req.Token)
 	}
 	if tokenHash == "" {
 		writeError(w, http.StatusBadRequest, "MISSING_FIELDS", "token_hash or token is required")

@@ -85,9 +85,9 @@ type TenantBranding struct {
 	CustomCSS string `json:"custom_css"`
 
 	// Feature Flags
-	ShowPoweredBy    bool `json:"show_powered_by"`
-	ShowHelpWidget   bool `json:"show_help_widget"`
-	ShowMarketplace  bool `json:"show_marketplace"`
+	ShowPoweredBy     bool `json:"show_powered_by"`
+	ShowHelpWidget    bool `json:"show_help_widget"`
+	ShowMarketplace   bool `json:"show_marketplace"`
 	ShowKnowledgeBase bool `json:"show_knowledge_base"`
 
 	CreatedAt time.Time `json:"created_at"`
@@ -96,16 +96,16 @@ type TenantBranding struct {
 
 // WhiteLabelPartner represents a reseller partner.
 type WhiteLabelPartner struct {
-	ID                  uuid.UUID `json:"id"`
-	PartnerName         string    `json:"partner_name"`
-	PartnerSlug         string    `json:"partner_slug"`
-	ContactEmail        string    `json:"contact_email"`
+	ID                  uuid.UUID  `json:"id"`
+	PartnerName         string     `json:"partner_name"`
+	PartnerSlug         string     `json:"partner_slug"`
+	ContactEmail        string     `json:"contact_email"`
 	DefaultBrandingID   *uuid.UUID `json:"default_branding_id"`
-	RevenueSharePercent float64   `json:"revenue_share_percent"`
-	MaxTenants          int       `json:"max_tenants"`
-	IsActive            bool      `json:"is_active"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	RevenueSharePercent float64    `json:"revenue_share_percent"`
+	MaxTenants          int        `json:"max_tenants"`
+	IsActive            bool       `json:"is_active"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 // PartnerTenantMapping links a partner to a managed organisation.
@@ -166,13 +166,13 @@ type UpdateBrandingRequest struct {
 
 // DomainVerificationResult is the result of a custom domain verification check.
 type DomainVerificationResult struct {
-	Domain      string `json:"domain"`
-	Status      string `json:"status"`
-	CNAMEValid  bool   `json:"cname_valid"`
-	TXTValid    bool   `json:"txt_valid"`
-	Token       string `json:"verification_token"`
-	SSLStatus   string `json:"ssl_status"`
-	Message     string `json:"message"`
+	Domain     string `json:"domain"`
+	Status     string `json:"status"`
+	CNAMEValid bool   `json:"cname_valid"`
+	TXTValid   bool   `json:"txt_valid"`
+	Token      string `json:"verification_token"`
+	SSLStatus  string `json:"ssl_status"`
+	Message    string `json:"message"`
 }
 
 // DomainStatusResponse returns the current domain + SSL status.
@@ -450,22 +450,22 @@ func (s *BrandingService) getPartnerDefaultBranding(ctx context.Context, orgID u
 func (s *BrandingService) UpdateBranding(ctx context.Context, orgID uuid.UUID, req UpdateBrandingRequest) (*TenantBranding, error) {
 	// Validate hex colour fields
 	colourFields := map[string]*string{
-		"color_primary":        req.ColorPrimary,
-		"color_primary_hover":  req.ColorPrimaryHover,
-		"color_secondary":      req.ColorSecondary,
+		"color_primary":         req.ColorPrimary,
+		"color_primary_hover":   req.ColorPrimaryHover,
+		"color_secondary":       req.ColorSecondary,
 		"color_secondary_hover": req.ColorSecondaryHover,
-		"color_accent":         req.ColorAccent,
-		"color_background":     req.ColorBackground,
-		"color_surface":        req.ColorSurface,
-		"color_text_primary":   req.ColorTextPrimary,
-		"color_text_secondary": req.ColorTextSecondary,
-		"color_border":         req.ColorBorder,
-		"color_success":        req.ColorSuccess,
-		"color_warning":        req.ColorWarning,
-		"color_error":          req.ColorError,
-		"color_info":           req.ColorInfo,
-		"color_sidebar_bg":     req.ColorSidebarBg,
-		"color_sidebar_text":   req.ColorSidebarText,
+		"color_accent":          req.ColorAccent,
+		"color_background":      req.ColorBackground,
+		"color_surface":         req.ColorSurface,
+		"color_text_primary":    req.ColorTextPrimary,
+		"color_text_secondary":  req.ColorTextSecondary,
+		"color_border":          req.ColorBorder,
+		"color_success":         req.ColorSuccess,
+		"color_warning":         req.ColorWarning,
+		"color_error":           req.ColorError,
+		"color_info":            req.ColorInfo,
+		"color_sidebar_bg":      req.ColorSidebarBg,
+		"color_sidebar_text":    req.ColorSidebarText,
 	}
 	for name, val := range colourFields {
 		if val != nil {
@@ -477,9 +477,9 @@ func (s *BrandingService) UpdateBranding(ctx context.Context, orgID uuid.UUID, r
 
 	// Validate URL fields
 	urlFields := map[string]*string{
-		"support_url":           req.SupportURL,
-		"privacy_policy_url":    req.PrivacyPolicyURL,
-		"terms_of_service_url":  req.TermsOfServiceURL,
+		"support_url":          req.SupportURL,
+		"privacy_policy_url":   req.PrivacyPolicyURL,
+		"terms_of_service_url": req.TermsOfServiceURL,
 	}
 	for name, val := range urlFields {
 		if val != nil && *val != "" {
@@ -1331,14 +1331,14 @@ var safeProperties = map[string]bool{
 	"color": true, "background": true, "background-color": true,
 	"background-image": true, "background-size": true, "background-position": true,
 	"background-repeat": true,
-	"font": true, "font-family": true, "font-size": true, "font-weight": true,
+	"font":              true, "font-family": true, "font-size": true, "font-weight": true,
 	"font-style": true, "font-variant": true,
 	"line-height": true, "letter-spacing": true, "word-spacing": true,
 	"text-align": true, "text-decoration": true, "text-transform": true,
 	"text-indent": true, "text-shadow": true,
 	"border": true, "border-color": true, "border-width": true, "border-style": true,
 	"border-radius": true,
-	"border-top": true, "border-right": true, "border-bottom": true, "border-left": true,
+	"border-top":    true, "border-right": true, "border-bottom": true, "border-left": true,
 	"border-top-color": true, "border-right-color": true, "border-bottom-color": true, "border-left-color": true,
 	"border-top-width": true, "border-right-width": true, "border-bottom-width": true, "border-left-width": true,
 	"border-top-left-radius": true, "border-top-right-radius": true,

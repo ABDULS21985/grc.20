@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,54 +74,54 @@ type CalendarEvent struct {
 
 // CalendarSubscription represents per-user calendar preferences.
 type CalendarSubscription struct {
-	ID                    uuid.UUID  `json:"id"`
-	OrganizationID        uuid.UUID  `json:"organization_id"`
-	UserID                uuid.UUID  `json:"user_id"`
-	SubscribedCategories  []string   `json:"subscribed_categories"`
-	SubscribedPriorities  []string   `json:"subscribed_priorities"`
-	EmailReminders        bool       `json:"email_reminders"`
-	InAppReminders        bool       `json:"in_app_reminders"`
-	DailyDigest           bool       `json:"daily_digest"`
-	WeeklyDigest          bool       `json:"weekly_digest"`
-	ICalExportEnabled     bool       `json:"ical_export_enabled"`
-	ICalToken             string     `json:"ical_token,omitempty"`
-	ICalTokenExpiresAt    *time.Time `json:"ical_token_expires_at"`
-	ReminderDaysOverride  []int      `json:"reminder_days_override"`
-	QuietHoursStart       *string    `json:"quiet_hours_start"`
-	QuietHoursEnd         *string    `json:"quiet_hours_end"`
-	Timezone              string     `json:"timezone"`
-	CreatedAt             time.Time  `json:"created_at"`
-	UpdatedAt             time.Time  `json:"updated_at"`
+	ID                   uuid.UUID  `json:"id"`
+	OrganizationID       uuid.UUID  `json:"organization_id"`
+	UserID               uuid.UUID  `json:"user_id"`
+	SubscribedCategories []string   `json:"subscribed_categories"`
+	SubscribedPriorities []string   `json:"subscribed_priorities"`
+	EmailReminders       bool       `json:"email_reminders"`
+	InAppReminders       bool       `json:"in_app_reminders"`
+	DailyDigest          bool       `json:"daily_digest"`
+	WeeklyDigest         bool       `json:"weekly_digest"`
+	ICalExportEnabled    bool       `json:"ical_export_enabled"`
+	ICalToken            string     `json:"ical_token,omitempty"`
+	ICalTokenExpiresAt   *time.Time `json:"ical_token_expires_at"`
+	ReminderDaysOverride []int      `json:"reminder_days_override"`
+	QuietHoursStart      *string    `json:"quiet_hours_start"`
+	QuietHoursEnd        *string    `json:"quiet_hours_end"`
+	Timezone             string     `json:"timezone"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
 // CalendarSyncConfig represents per-module sync settings.
 type CalendarSyncConfig struct {
-	ID                    uuid.UUID `json:"id"`
-	OrganizationID        uuid.UUID `json:"organization_id"`
-	ModuleName            string    `json:"module_name"`
-	IsEnabled             bool      `json:"is_enabled"`
-	SyncFrequencyMinutes  int       `json:"sync_frequency_minutes"`
+	ID                    uuid.UUID  `json:"id"`
+	OrganizationID        uuid.UUID  `json:"organization_id"`
+	ModuleName            string     `json:"module_name"`
+	IsEnabled             bool       `json:"is_enabled"`
+	SyncFrequencyMinutes  int        `json:"sync_frequency_minutes"`
 	LastSyncAt            *time.Time `json:"last_sync_at"`
-	LastSyncStatus        string    `json:"last_sync_status"`
-	LastSyncEventsCreated int       `json:"last_sync_events_created"`
-	LastSyncEventsUpdated int       `json:"last_sync_events_updated"`
-	LastSyncError         string    `json:"last_sync_error"`
-	AutoCreateEvents      bool      `json:"auto_create_events"`
-	AutoCompleteEvents    bool      `json:"auto_complete_events"`
-	DefaultReminderDays   []int     `json:"default_reminder_days"`
-	DefaultPriority       string    `json:"default_priority"`
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	LastSyncStatus        string     `json:"last_sync_status"`
+	LastSyncEventsCreated int        `json:"last_sync_events_created"`
+	LastSyncEventsUpdated int        `json:"last_sync_events_updated"`
+	LastSyncError         string     `json:"last_sync_error"`
+	AutoCreateEvents      bool       `json:"auto_create_events"`
+	AutoCompleteEvents    bool       `json:"auto_complete_events"`
+	DefaultReminderDays   []int      `json:"default_reminder_days"`
+	DefaultPriority       string     `json:"default_priority"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
-// SyncResult holds the result of a sync operation.
-type SyncResult struct {
-	Module         string `json:"module"`
-	EventsCreated  int    `json:"events_created"`
-	EventsUpdated  int    `json:"events_updated"`
-	EventsSkipped  int    `json:"events_skipped"`
-	Errors         int    `json:"errors"`
-	Duration       string `json:"duration"`
+// CalendarSyncResult holds the result of a sync operation.
+type CalendarSyncResult struct {
+	Module        string `json:"module"`
+	EventsCreated int    `json:"events_created"`
+	EventsUpdated int    `json:"events_updated"`
+	EventsSkipped int    `json:"events_skipped"`
+	Errors        int    `json:"errors"`
+	Duration      string `json:"duration"`
 }
 
 // ============================================================
@@ -576,10 +577,10 @@ func (s *CalendarService) UpdateSubscription(ctx context.Context, orgID, userID 
 // ============================================================
 
 // SyncAllModules performs a full sync across all enabled modules.
-func (s *CalendarService) SyncAllModules(ctx context.Context, orgID uuid.UUID) ([]SyncResult, error) {
-	var results []SyncResult
+func (s *CalendarService) SyncAllModules(ctx context.Context, orgID uuid.UUID) ([]CalendarSyncResult, error) {
+	var results []CalendarSyncResult
 
-	syncFuncs := map[string]func(context.Context, uuid.UUID) (*SyncResult, error){
+	syncFuncs := map[string]func(context.Context, uuid.UUID) (*CalendarSyncResult, error){
 		"policies":            s.SyncPolicyEvents,
 		"risks":               s.SyncRiskEvents,
 		"vendors":             s.SyncVendorEvents,
@@ -607,7 +608,7 @@ func (s *CalendarService) SyncAllModules(ctx context.Context, orgID uuid.UUID) (
 		if err != nil {
 			log.Error().Err(err).Str("module", module).Msg("Sync failed")
 			s.updateSyncStatus(ctx, orgID, module, "error", 0, 0, err.Error())
-			results = append(results, SyncResult{Module: module, Errors: 1})
+			results = append(results, CalendarSyncResult{Module: module, Errors: 1})
 			continue
 		}
 		if result != nil {
@@ -620,9 +621,9 @@ func (s *CalendarService) SyncAllModules(ctx context.Context, orgID uuid.UUID) (
 }
 
 // SyncPolicyEvents syncs policy review and expiry deadlines to the calendar.
-func (s *CalendarService) SyncPolicyEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncPolicyEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "policies"}
+	result := &CalendarSyncResult{Module: "policies"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT p.id, p.policy_ref, p.title, p.next_review_date, p.expiry_date,
@@ -706,9 +707,9 @@ func (s *CalendarService) SyncPolicyEvents(ctx context.Context, orgID uuid.UUID)
 }
 
 // SyncRiskEvents syncs risk review and treatment deadlines to the calendar.
-func (s *CalendarService) SyncRiskEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncRiskEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "risks"}
+	result := &CalendarSyncResult{Module: "risks"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT r.id, r.risk_ref, r.title, r.next_review_date, r.treatment_due_date,
@@ -791,9 +792,9 @@ func (s *CalendarService) SyncRiskEvents(ctx context.Context, orgID uuid.UUID) (
 }
 
 // SyncVendorEvents syncs vendor assessment and contract deadlines.
-func (s *CalendarService) SyncVendorEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncVendorEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "vendors"}
+	result := &CalendarSyncResult{Module: "vendors"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT v.id, v.vendor_ref, v.name, v.next_assessment_date,
@@ -876,9 +877,9 @@ func (s *CalendarService) SyncVendorEvents(ctx context.Context, orgID uuid.UUID)
 }
 
 // SyncAuditEvents syncs audit schedule and finding deadlines.
-func (s *CalendarService) SyncAuditEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncAuditEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "audits"}
+	result := &CalendarSyncResult{Module: "audits"}
 
 	// Audit schedule
 	rows, err := s.pool.Query(ctx, `
@@ -1017,9 +1018,9 @@ func (s *CalendarService) SyncAuditEvents(ctx context.Context, orgID uuid.UUID) 
 }
 
 // SyncEvidenceEvents syncs evidence collection deadlines.
-func (s *CalendarService) SyncEvidenceEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncEvidenceEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "evidence"}
+	result := &CalendarSyncResult{Module: "evidence"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT ec.id, ec.collection_ref, ec.title, ec.next_collection_date,
@@ -1077,9 +1078,9 @@ func (s *CalendarService) SyncEvidenceEvents(ctx context.Context, orgID uuid.UUI
 }
 
 // SyncExceptionEvents syncs exception expiry and review deadlines.
-func (s *CalendarService) SyncExceptionEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncExceptionEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "exceptions"}
+	result := &CalendarSyncResult{Module: "exceptions"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT ce.id, ce.exception_ref, ce.title, ce.expiry_date,
@@ -1161,9 +1162,9 @@ func (s *CalendarService) SyncExceptionEvents(ctx context.Context, orgID uuid.UU
 }
 
 // SyncDSREvents syncs DSR deadlines to the calendar.
-func (s *CalendarService) SyncDSREvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncDSREvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "dsr"}
+	result := &CalendarSyncResult{Module: "dsr"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT dr.id, dr.request_ref, dr.subject_name, dr.statutory_deadline,
@@ -1244,9 +1245,9 @@ func (s *CalendarService) SyncDSREvents(ctx context.Context, orgID uuid.UUID) (*
 }
 
 // SyncIncidentEvents syncs incident notification deadlines.
-func (s *CalendarService) SyncIncidentEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncIncidentEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "incidents"}
+	result := &CalendarSyncResult{Module: "incidents"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT i.id, i.incident_ref, i.title, i.notification_deadline,
@@ -1328,9 +1329,9 @@ func (s *CalendarService) SyncIncidentEvents(ctx context.Context, orgID uuid.UUI
 }
 
 // SyncRegulatoryEvents syncs regulatory change deadlines.
-func (s *CalendarService) SyncRegulatoryEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncRegulatoryEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "regulatory"}
+	result := &CalendarSyncResult{Module: "regulatory"}
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT rc.id, rc.change_ref, rc.title, rc.effective_date, rc.deadline,
@@ -1411,9 +1412,9 @@ func (s *CalendarService) SyncRegulatoryEvents(ctx context.Context, orgID uuid.U
 }
 
 // SyncBCEvents syncs business continuity plan reviews and exercises.
-func (s *CalendarService) SyncBCEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncBCEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "business_continuity"}
+	result := &CalendarSyncResult{Module: "business_continuity"}
 
 	// BC plan reviews
 	rows, err := s.pool.Query(ctx, `
@@ -1523,9 +1524,9 @@ func (s *CalendarService) SyncBCEvents(ctx context.Context, orgID uuid.UUID) (*S
 }
 
 // SyncBoardEvents syncs board meetings and decision action deadlines.
-func (s *CalendarService) SyncBoardEvents(ctx context.Context, orgID uuid.UUID) (*SyncResult, error) {
+func (s *CalendarService) SyncBoardEvents(ctx context.Context, orgID uuid.UUID) (*CalendarSyncResult, error) {
 	start := time.Now()
-	result := &SyncResult{Module: "board"}
+	result := &CalendarSyncResult{Module: "board"}
 
 	// Board meetings
 	rows, err := s.pool.Query(ctx, `
@@ -1959,4 +1960,82 @@ func priorityOrDefault(priority, def string) string {
 	default:
 		return def
 	}
+}
+
+// ============================================================
+// RRULE / RECURRENCE PARSING
+// ============================================================
+
+// ComputeNextOccurrence calculates the next occurrence date based on recurrence.
+// Supports both simple recurrence types and RFC 5545 RRULE strings.
+func ComputeNextOccurrence(currentDate time.Time, recType, rrule string) time.Time {
+	return computeNextOccurrence(currentDate, recType, rrule)
+}
+
+func computeNextOccurrence(currentDate time.Time, recType, rrule string) time.Time {
+	switch recType {
+	case "daily":
+		return currentDate.AddDate(0, 0, 1)
+	case "weekly":
+		return currentDate.AddDate(0, 0, 7)
+	case "monthly":
+		return currentDate.AddDate(0, 1, 0)
+	case "quarterly":
+		return currentDate.AddDate(0, 3, 0)
+	case "semi_annually":
+		return currentDate.AddDate(0, 6, 0)
+	case "annually":
+		return currentDate.AddDate(1, 0, 0)
+	case "custom_rrule":
+		return parseRRule(currentDate, rrule)
+	}
+	return time.Time{}
+}
+
+// ParseRRule parses a simplified RFC 5545 RRULE string and computes the next date.
+// Supports: FREQ=DAILY|WEEKLY|MONTHLY|YEARLY and INTERVAL=N
+// Example: "FREQ=MONTHLY;INTERVAL=3" produces quarterly recurrence.
+func ParseRRule(currentDate time.Time, rrule string) time.Time {
+	return parseRRule(currentDate, rrule)
+}
+
+func parseRRule(currentDate time.Time, rrule string) time.Time {
+	if rrule == "" {
+		return time.Time{}
+	}
+
+	parts := strings.Split(rrule, ";")
+	freq := ""
+	interval := 1
+
+	for _, part := range parts {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(strings.ToUpper(kv[0]))
+		val := strings.TrimSpace(strings.ToUpper(kv[1]))
+
+		switch key {
+		case "FREQ":
+			freq = val
+		case "INTERVAL":
+			if n, err := strconv.Atoi(val); err == nil && n > 0 {
+				interval = n
+			}
+		}
+	}
+
+	switch freq {
+	case "DAILY":
+		return currentDate.AddDate(0, 0, interval)
+	case "WEEKLY":
+		return currentDate.AddDate(0, 0, 7*interval)
+	case "MONTHLY":
+		return currentDate.AddDate(0, interval, 0)
+	case "YEARLY":
+		return currentDate.AddDate(interval, 0, 0)
+	}
+
+	return time.Time{}
 }

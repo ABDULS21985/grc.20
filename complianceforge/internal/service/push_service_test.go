@@ -69,7 +69,7 @@ func (m *mockPushProvider) reset() {
 // TOKEN HASH TESTS
 // ============================================================
 
-func TestHashToken_Deterministic(t *testing.T) {
+func TestHashPushToken_Deterministic(t *testing.T) {
 	token := "test-push-token-abc123"
 	hash1 := hashToken(token)
 	hash2 := hashToken(token)
@@ -83,7 +83,7 @@ func TestHashToken_Deterministic(t *testing.T) {
 	}
 }
 
-func TestHashToken_DifferentTokens(t *testing.T) {
+func TestHashPushToken_DifferentTokens(t *testing.T) {
 	hash1 := hashToken("token-A")
 	hash2 := hashToken("token-B")
 
@@ -92,7 +92,7 @@ func TestHashToken_DifferentTokens(t *testing.T) {
 	}
 }
 
-func TestHashToken_EmptyToken(t *testing.T) {
+func TestHashPushToken_EmptyToken(t *testing.T) {
 	hash := hashToken("")
 	if hash == "" {
 		t.Error("hashToken of empty string should not be empty")
@@ -102,10 +102,10 @@ func TestHashToken_EmptyToken(t *testing.T) {
 	}
 }
 
-func TestHashToken_Exported(t *testing.T) {
+func TestHashPushToken_Exported(t *testing.T) {
 	token := "exported-token-test"
-	if HashToken(token) != hashToken(token) {
-		t.Error("HashToken (exported) should produce same result as hashToken (internal)")
+	if HashPushToken(token) != hashToken(token) {
+		t.Error("HashPushToken (exported) should produce same result as hashToken (internal)")
 	}
 }
 

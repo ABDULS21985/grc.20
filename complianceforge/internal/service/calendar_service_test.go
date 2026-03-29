@@ -205,9 +205,9 @@ func TestReminderShouldFire(t *testing.T) {
 	thresholds := []int{7, 3, 1}
 
 	tests := []struct {
-		name        string
+		name         string
 		daysUntilDue int
-		shouldFire  bool
+		shouldFire   bool
 	}{
 		{"7 days before", 7, true},
 		{"3 days before", 3, true},

@@ -202,11 +202,6 @@ func (s *CollaborationService) setRLS(ctx context.Context, tx pgx.Tx, orgID uuid
 	return err
 }
 
-func (s *CollaborationService) setRLSConn(ctx context.Context, conn *pgxpool.Conn, orgID uuid.UUID) error {
-	_, err := conn.Exec(ctx, "SET LOCAL app.current_org = '"+orgID.String()+"'")
-	return err
-}
-
 // ============================================================
 // MENTION PARSING
 // ============================================================

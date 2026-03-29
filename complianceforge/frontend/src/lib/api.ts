@@ -1078,6 +1078,75 @@ class ApiClient {
     return this.request<any>(`/evidence/pre-audit-check/${id}/report`);
   }
 
+  // ── Search & Knowledge Base (Prompt 32) ─────────
+  async searchEntities(queryString: string) {
+    return this.request<any>(`/search?${queryString}`);
+  }
+
+  async searchAutocomplete(query: string, limit = 10) {
+    return this.request<any>(`/search/autocomplete?q=${encodeURIComponent(query)}&limit=${limit}`);
+  }
+
+  async getRelatedEntities(entityType: string, entityId: string) {
+    return this.request<any>(`/search/related/${entityType}/${entityId}`);
+  }
+
+  async getRecentSearches(limit = 10) {
+    return this.request<any>(`/search/recent?limit=${limit}`);
+  }
+
+  async getSearchAnalytics(days = 30) {
+    return this.request<any>(`/search/analytics?days=${days}`);
+  }
+
+  async getIndexStats() {
+    return this.request<any>('/search/index-stats');
+  }
+
+  async triggerReindex() {
+    return this.request<any>('/search/reindex', { method: 'POST' });
+  }
+
+  async recordSearchClick(data: { query: string; entity_type: string; entity_id: string }) {
+    return this.request<any>('/search/click', { method: 'POST', body: data });
+  }
+
+  async browseKnowledge(queryString: string) {
+    return this.request<any>(`/knowledge?${queryString}`);
+  }
+
+  async getKnowledgeArticle(slug: string) {
+    return this.request<any>(`/knowledge/${slug}`);
+  }
+
+  async getArticlesForControl(frameworkCode: string, controlCode: string) {
+    return this.request<any>(`/knowledge/for-control/${frameworkCode}/${controlCode}`);
+  }
+
+  async getRecommendedArticles(limit = 5) {
+    return this.request<any>(`/knowledge/recommended?limit=${limit}`);
+  }
+
+  async createKnowledgeArticle(data: any) {
+    return this.request<any>('/knowledge/articles', { method: 'POST', body: data });
+  }
+
+  async updateKnowledgeArticle(id: string, data: any) {
+    return this.request<any>(`/knowledge/articles/${id}`, { method: 'PUT', body: data });
+  }
+
+  async submitArticleFeedback(id: string, data: { action: string; comment?: string }) {
+    return this.request<any>(`/knowledge/articles/${id}/feedback`, { method: 'POST', body: data });
+  }
+
+  async getKnowledgeBookmarks(page = 1, pageSize = 20) {
+    return this.request<any>(`/knowledge/bookmarks?page=${page}&page_size=${pageSize}`);
+  }
+
+  async toggleKnowledgeBookmark(articleId: string) {
+    return this.request<any>(`/knowledge/bookmarks/${articleId}`, { method: 'POST' });
+  }
+
   // ── Collaboration — Comments (Prompt 33) ────────
   async getComments(entityType: string, entityId: string, sort = 'oldest') {
     return this.request<any>(`/comments/${entityType}/${entityId}?sort=${sort}`);

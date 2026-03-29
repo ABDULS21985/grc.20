@@ -2,8 +2,6 @@ package worker
 
 import (
 	"context"
-	"strings"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -306,7 +304,7 @@ func (w *CalendarWorker) processRecurringEvents(ctx context.Context, orgID uuid.
 			continue
 		}
 
-		nextDate := computeNextOccurrence(dueDate, recType, rrule)
+		nextDate := service.ComputeNextOccurrence(dueDate, recType, rrule)
 		if nextDate.IsZero() {
 			continue
 		}
@@ -358,77 +356,6 @@ func (w *CalendarWorker) processRecurringEvents(ctx context.Context, orgID uuid.
 	}
 
 	return generated, nil
-}
-
-// ============================================================
-// RRULE PARSING
-// ============================================================
-
-// computeNextOccurrence calculates the next occurrence date based on recurrence.
-// Supports both simple recurrence types and RFC 5545 RRULE strings.
-func computeNextOccurrence(currentDate time.Time, recType, rrule string) time.Time {
-	// Simple recurrence types
-	switch recType {
-	case "daily":
-		return currentDate.AddDate(0, 0, 1)
-	case "weekly":
-		return currentDate.AddDate(0, 0, 7)
-	case "monthly":
-		return currentDate.AddDate(0, 1, 0)
-	case "quarterly":
-		return currentDate.AddDate(0, 3, 0)
-	case "semi_annually":
-		return currentDate.AddDate(0, 6, 0)
-	case "annually":
-		return currentDate.AddDate(1, 0, 0)
-	case "custom_rrule":
-		return parseRRule(currentDate, rrule)
-	}
-	return time.Time{}
-}
-
-// parseRRule parses a simplified RFC 5545 RRULE string and computes the next date.
-// Supports: FREQ=DAILY|WEEKLY|MONTHLY|YEARLY and INTERVAL=N
-// Example: "FREQ=MONTHLY;INTERVAL=3" produces quarterly recurrence.
-func parseRRule(currentDate time.Time, rrule string) time.Time {
-	if rrule == "" {
-		return time.Time{}
-	}
-
-	parts := strings.Split(rrule, ";")
-	freq := ""
-	interval := 1
-
-	for _, part := range parts {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		key := strings.TrimSpace(strings.ToUpper(kv[0]))
-		val := strings.TrimSpace(strings.ToUpper(kv[1]))
-
-		switch key {
-		case "FREQ":
-			freq = val
-		case "INTERVAL":
-			if n, err := strconv.Atoi(val); err == nil && n > 0 {
-				interval = n
-			}
-		}
-	}
-
-	switch freq {
-	case "DAILY":
-		return currentDate.AddDate(0, 0, interval)
-	case "WEEKLY":
-		return currentDate.AddDate(0, 0, 7*interval)
-	case "MONTHLY":
-		return currentDate.AddDate(0, interval, 0)
-	case "YEARLY":
-		return currentDate.AddDate(interval, 0, 0)
-	}
-
-	return time.Time{}
 }
 
 // ============================================================

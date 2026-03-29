@@ -16,16 +16,16 @@ import (
 
 // CalendarViewFilter holds filter options for the calendar view.
 type CalendarViewFilter struct {
-	StartDate  string   `json:"start_date"`
-	EndDate    string   `json:"end_date"`
-	Categories []string `json:"categories"`
-	Priorities []string `json:"priorities"`
-	Statuses   []string `json:"statuses"`
-	EventTypes []string `json:"event_types"`
+	StartDate  string     `json:"start_date"`
+	EndDate    string     `json:"end_date"`
+	Categories []string   `json:"categories"`
+	Priorities []string   `json:"priorities"`
+	Statuses   []string   `json:"statuses"`
+	EventTypes []string   `json:"event_types"`
 	AssignedTo *uuid.UUID `json:"assigned_to"`
-	Search     string   `json:"search"`
-	Page       int      `json:"page"`
-	PageSize   int      `json:"page_size"`
+	Search     string     `json:"search"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"page_size"`
 }
 
 // CalendarViewResult is the paginated result for the calendar view.
@@ -55,8 +55,8 @@ type UpcomingDeadline struct {
 	AssignedToName   string     `json:"assigned_to_name"`
 }
 
-// OverdueItem represents an overdue calendar event.
-type OverdueItem struct {
+// CalendarOverdueItem represents an overdue calendar event.
+type CalendarOverdueItem struct {
 	ID               uuid.UUID  `json:"id"`
 	EventRef         string     `json:"event_ref"`
 	EventType        string     `json:"event_type"`
@@ -75,18 +75,18 @@ type OverdueItem struct {
 
 // CalendarSummary holds monthly compliance calendar statistics.
 type CalendarSummary struct {
-	Month                string                      `json:"month"`
-	TotalEvents          int64                       `json:"total_events"`
-	UpcomingCount        int64                       `json:"upcoming_count"`
-	DueSoonCount         int64                       `json:"due_soon_count"`
-	OverdueCount         int64                       `json:"overdue_count"`
-	CompletedCount       int64                       `json:"completed_count"`
-	CancelledCount       int64                       `json:"cancelled_count"`
-	ByCategory           map[string]int64            `json:"by_category"`
-	ByPriority           map[string]int64            `json:"by_priority"`
-	CompletionRate       float64                     `json:"completion_rate"`
-	CriticalDeadlines    []UpcomingDeadline          `json:"critical_deadlines"`
-	WeeklySummary        []WeekSummary               `json:"weekly_summary"`
+	Month             string             `json:"month"`
+	TotalEvents       int64              `json:"total_events"`
+	UpcomingCount     int64              `json:"upcoming_count"`
+	DueSoonCount      int64              `json:"due_soon_count"`
+	OverdueCount      int64              `json:"overdue_count"`
+	CompletedCount    int64              `json:"completed_count"`
+	CancelledCount    int64              `json:"cancelled_count"`
+	ByCategory        map[string]int64   `json:"by_category"`
+	ByPriority        map[string]int64   `json:"by_priority"`
+	CompletionRate    float64            `json:"completion_rate"`
+	CriticalDeadlines []UpcomingDeadline `json:"critical_deadlines"`
+	WeeklySummary     []WeekSummary      `json:"weekly_summary"`
 }
 
 // WeekSummary holds per-week event counts.
@@ -304,7 +304,7 @@ func (s *CalendarService) GetUpcomingDeadlines(ctx context.Context, orgID, userI
 // ============================================================
 
 // GetOverdueItems returns all overdue calendar events for an org.
-func (s *CalendarService) GetOverdueItems(ctx context.Context, orgID uuid.UUID) ([]OverdueItem, error) {
+func (s *CalendarService) GetOverdueItems(ctx context.Context, orgID uuid.UUID) ([]CalendarOverdueItem, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -334,9 +334,9 @@ func (s *CalendarService) GetOverdueItems(ctx context.Context, orgID uuid.UUID) 
 	}
 	defer rows.Close()
 
-	var items []OverdueItem
+	var items []CalendarOverdueItem
 	for rows.Next() {
-		var item OverdueItem
+		var item CalendarOverdueItem
 		if err := rows.Scan(
 			&item.ID, &item.EventRef, &item.EventType, &item.Category, &item.Priority,
 			&item.Title, &item.DueDate,
