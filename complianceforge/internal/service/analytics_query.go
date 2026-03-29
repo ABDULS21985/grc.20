@@ -68,8 +68,8 @@ type DistributionEntry struct {
 	Percent  float64 `json:"percent"`
 }
 
-// ExportConfig configures the data export operation.
-type ExportConfig struct {
+// AnalyticsExportConfig configures the data export operation.
+type AnalyticsExportConfig struct {
 	Format      string   `json:"format"`       // "csv" or "json"
 	Metrics     []string `json:"metrics"`       // metrics to include
 	StartDate   string   `json:"start_date"`    // YYYY-MM-DD
@@ -441,7 +441,7 @@ func (q *AnalyticsQuery) GetDistribution(ctx context.Context, orgID uuid.UUID, e
 
 // ExportAnalyticsData exports analytics data in the requested format.
 // Returns the data bytes and the content-type header value.
-func (q *AnalyticsQuery) ExportAnalyticsData(ctx context.Context, orgID uuid.UUID, config ExportConfig) ([]byte, string, error) {
+func (q *AnalyticsQuery) ExportAnalyticsData(ctx context.Context, orgID uuid.UUID, config AnalyticsExportConfig) ([]byte, string, error) {
 	startDate, err := time.Parse("2006-01-02", config.StartDate)
 	if err != nil {
 		startDate = time.Now().UTC().AddDate(0, -12, 0)
@@ -470,12 +470,6 @@ func (q *AnalyticsQuery) ExportAnalyticsData(ctx context.Context, orgID uuid.UUI
 		return nil, "", fmt.Errorf("query export data: %w", err)
 	}
 	defer rows.Close()
-
-	type exportRow struct {
-		Date         string                 `json:"date"`
-		SnapshotType string                 `json:"snapshot_type"`
-		Metrics      map[string]interface{} `json:"metrics"`
-	}
 
 	var exportRows []exportRow
 	for rows.Next() {
@@ -519,12 +513,6 @@ func (q *AnalyticsQuery) ExportAnalyticsData(ctx context.Context, orgID uuid.UUI
 
 // exportJSON marshals export data to JSON.
 func (q *AnalyticsQuery) exportJSON(rows []exportRow) ([]byte, string, error) {
-	type exportRow struct {
-		Date         string                 `json:"date"`
-		SnapshotType string                 `json:"snapshot_type"`
-		Metrics      map[string]interface{} `json:"metrics"`
-	}
-
 	data, err := json.MarshalIndent(rows, "", "  ")
 	if err != nil {
 		return nil, "", fmt.Errorf("marshal export JSON: %w", err)

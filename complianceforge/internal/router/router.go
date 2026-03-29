@@ -104,6 +104,27 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	abacEngine := service.NewABACEngine(db.Pool)
 	fieldMasker := service.NewFieldMasker(db.Pool, abacEngine)
 
+	// Batch 5: AI Service & Remediation Planner
+	aiService := service.NewAIService(db.Pool, cfg.Security.AIAPIKey, cfg.Security.AIModel)
+	remediationPlanner := service.NewRemediationPlanner(db.Pool, aiService)
+
+	// Batch 5: Control Library Marketplace
+	marketplaceSvc := service.NewMarketplaceService(db.Pool)
+	packageBuilder := service.NewPackageBuilder(db.Pool)
+
+	// Batch 5: Regulatory Change Management
+	regulatoryScanner := service.NewRegulatoryScanner(db.Pool)
+	regulatorySvc := service.NewRegulatoryService(db.Pool, regulatoryScanner)
+
+	// Batch 5: BIA & Business Continuity
+	biaSvc := service.NewBIAService(db.Pool)
+	continuitySvc := service.NewContinuityService(db.Pool)
+
+	// Batch 5: Advanced Analytics
+	analyticsEngine := service.NewAnalyticsEngine(db.Pool)
+	analyticsQuery := service.NewAnalyticsQuery(db.Pool)
+	dashboardSvc := service.NewDashboardService(db.Pool)
+
 	// ── Handlers ─────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, cfg.App.Version)
 	authH := handler.NewAuthHandler(authSvc)
@@ -133,6 +154,13 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	onboardH = handler.NewOnboardingHandlerWithWizard(onboardingSvc, onboardingWizard)
 	subscriptionH := handler.NewSubscriptionHandler(subscriptionSvc)
 	accessH := handler.NewAccessHandler(abacEngine, fieldMasker)
+
+	// Batch 5 Handlers
+	remediationH := handler.NewRemediationHandler(remediationPlanner, aiService)
+	marketplaceH := handler.NewMarketplaceHandler(marketplaceSvc, packageBuilder)
+	regulatoryH := handler.NewRegulatoryHandler(regulatorySvc)
+	biaH := handler.NewBIAHandler(biaSvc, continuitySvc)
+	analyticsH := handler.NewAnalyticsHandler(analyticsEngine, analyticsQuery, dashboardSvc)
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -391,6 +419,29 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 				r.Get("/audit-log", accessH.ListAuditLog)
 				r.Get("/my-permissions", accessH.GetMyPermissions)
 				r.Get("/field-permissions", accessH.GetFieldPermissions)
+			})
+
+			// ── AI Remediation Planner (Batch 5) ────────
+			r.Route("/remediation", func(r chi.Router) {
+				remediationH.RegisterRoutes(r)
+			})
+
+			// ── Control Library Marketplace (Batch 5) ───
+			r.Route("/marketplace", func(r chi.Router) {
+				marketplaceH.RegisterRoutes(r)
+			})
+
+			// ── Regulatory Change Management (Batch 5) ──
+			r.Route("/regulatory", func(r chi.Router) {
+				regulatoryH.RegisterRoutes(r)
+			})
+
+			// ── BIA & Business Continuity (Batch 5) ─────
+			biaH.RegisterRoutes(r)
+
+			// ── Advanced Analytics (Batch 5) ────────────
+			r.Route("/analytics", func(r chi.Router) {
+				analyticsH.RegisterRoutes(r)
 			})
 		})
 	})

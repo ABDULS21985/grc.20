@@ -72,8 +72,8 @@ type RegulatoryChange struct {
 	SourceName            string     `json:"source_name,omitempty"`
 }
 
-// Subscription represents an organisation's subscription to a regulatory source.
-type Subscription struct {
+// RegSubscription represents an organisation's subscription to a regulatory source.
+type RegSubscription struct {
 	ID                       uuid.UUID  `json:"id"`
 	OrganizationID           uuid.UUID  `json:"organization_id"`
 	SourceID                 uuid.UUID  `json:"source_id"`
@@ -130,8 +130,8 @@ type DeadlineEntry struct {
 	DaysLeft   int       `json:"days_left"`
 }
 
-// TimelineEntry represents an item on the regulatory change timeline.
-type TimelineEntry struct {
+// RegTimelineEntry represents an item on the regulatory change timeline.
+type RegTimelineEntry struct {
 	Date        string `json:"date"`
 	ChangeRef   string `json:"change_ref"`
 	Title       string `json:"title"`
@@ -459,8 +459,8 @@ func (s *RegulatoryService) CreateSource(ctx context.Context, req CreateSourceRe
 // SUBSCRIPTIONS
 // ============================================================
 
-// GetSubscriptions returns all subscriptions for an organisation.
-func (s *RegulatoryService) GetSubscriptions(ctx context.Context, orgID uuid.UUID) ([]Subscription, error) {
+// GetRegSubscriptions returns all subscriptions for an organisation.
+func (s *RegulatoryService) GetRegSubscriptions(ctx context.Context, orgID uuid.UUID) ([]RegSubscription, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT sub.id, sub.organization_id, sub.source_id, sub.is_active,
 		       sub.notification_on_new, sub.notification_severity_filter,
@@ -476,9 +476,9 @@ func (s *RegulatoryService) GetSubscriptions(ctx context.Context, orgID uuid.UUI
 	}
 	defer rows.Close()
 
-	var subs []Subscription
+	var subs []RegSubscription
 	for rows.Next() {
-		var sub Subscription
+		var sub RegSubscription
 		if err := rows.Scan(
 			&sub.ID, &sub.OrganizationID, &sub.SourceID, &sub.IsActive,
 			&sub.NotificationOnNew, &sub.NotificationSeverityFilter,
@@ -490,13 +490,13 @@ func (s *RegulatoryService) GetSubscriptions(ctx context.Context, orgID uuid.UUI
 		subs = append(subs, sub)
 	}
 	if subs == nil {
-		subs = []Subscription{}
+		subs = []RegSubscription{}
 	}
 	return subs, nil
 }
 
 // Subscribe creates a new regulatory source subscription for an organisation.
-func (s *RegulatoryService) Subscribe(ctx context.Context, orgID uuid.UUID, req SubscribeReq) (*Subscription, error) {
+func (s *RegulatoryService) Subscribe(ctx context.Context, orgID uuid.UUID, req SubscribeReq) (*RegSubscription, error) {
 	if req.SourceID == uuid.Nil {
 		return nil, fmt.Errorf("source_id is required")
 	}
@@ -504,7 +504,7 @@ func (s *RegulatoryService) Subscribe(ctx context.Context, orgID uuid.UUID, req 
 		req.NotificationSeverityFilter = []string{}
 	}
 
-	var sub Subscription
+	var sub RegSubscription
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO regulatory_subscriptions
 			(organization_id, source_id, notification_on_new, notification_severity_filter, auto_assess)
@@ -792,7 +792,7 @@ func (s *RegulatoryService) GetDashboard(ctx context.Context, orgID uuid.UUID) (
 // GetTimeline returns a chronological list of regulatory events over the
 // specified number of months, including published dates, effective dates,
 // and compliance deadlines.
-func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, months int) ([]TimelineEntry, error) {
+func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, months int) ([]RegTimelineEntry, error) {
 	if months < 1 {
 		months = 6
 	}
@@ -816,7 +816,7 @@ func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, mo
 	}
 	defer rows.Close()
 
-	var entries []TimelineEntry
+	var entries []RegTimelineEntry
 	for rows.Next() {
 		var (
 			changeRef     string
@@ -840,7 +840,7 @@ func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, mo
 		}
 
 		if publishedDate != nil {
-			entries = append(entries, TimelineEntry{
+			entries = append(entries, RegTimelineEntry{
 				Date:       publishedDate.Format("2006-01-02"),
 				ChangeRef:  changeRef,
 				Title:      title,
@@ -851,7 +851,7 @@ func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, mo
 			})
 		}
 		if effectiveDate != nil {
-			entries = append(entries, TimelineEntry{
+			entries = append(entries, RegTimelineEntry{
 				Date:       effectiveDate.Format("2006-01-02"),
 				ChangeRef:  changeRef,
 				Title:      title,
@@ -862,7 +862,7 @@ func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, mo
 			})
 		}
 		if deadline != nil {
-			entries = append(entries, TimelineEntry{
+			entries = append(entries, RegTimelineEntry{
 				Date:       deadline.Format("2006-01-02"),
 				ChangeRef:  changeRef,
 				Title:      title,
@@ -875,7 +875,7 @@ func (s *RegulatoryService) GetTimeline(ctx context.Context, orgID uuid.UUID, mo
 	}
 
 	if entries == nil {
-		entries = []TimelineEntry{}
+		entries = []RegTimelineEntry{}
 	}
 	return entries, nil
 }

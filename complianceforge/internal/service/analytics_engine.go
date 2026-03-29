@@ -204,6 +204,8 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 	}
 
 	// --- Risk metrics ---
+	var rCrit, rHigh, rMed, rLow, rVLow int64
+	var sIdent, sAssess, sTreat, sAccept, sClose, sMon int64
 	err := e.pool.QueryRow(ctx, `
 		SELECT
 			COUNT(*),
@@ -224,23 +226,25 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 		WHERE organization_id = $1 AND deleted_at IS NULL`, orgID,
 	).Scan(
 		&metrics.TotalRisks,
-		&metrics.RisksBySeverity["critical"],
-		&metrics.RisksBySeverity["high"],
-		&metrics.RisksBySeverity["medium"],
-		&metrics.RisksBySeverity["low"],
-		&metrics.RisksBySeverity["very_low"],
-		&metrics.RisksByStatus["identified"],
-		&metrics.RisksByStatus["assessed"],
-		&metrics.RisksByStatus["treated"],
-		&metrics.RisksByStatus["accepted"],
-		&metrics.RisksByStatus["closed"],
-		&metrics.RisksByStatus["monitoring"],
+		&rCrit, &rHigh, &rMed, &rLow, &rVLow,
+		&sIdent, &sAssess, &sTreat, &sAccept, &sClose, &sMon,
 		&metrics.AvgRiskScore,
 		&metrics.OverdueRiskReview,
 	)
 	if err != nil && err != pgx.ErrNoRows {
 		return fmt.Errorf("snapshot risks: %w", err)
 	}
+	metrics.RisksBySeverity["critical"] = rCrit
+	metrics.RisksBySeverity["high"] = rHigh
+	metrics.RisksBySeverity["medium"] = rMed
+	metrics.RisksBySeverity["low"] = rLow
+	metrics.RisksBySeverity["very_low"] = rVLow
+	metrics.RisksByStatus["identified"] = sIdent
+	metrics.RisksByStatus["assessed"] = sAssess
+	metrics.RisksByStatus["treated"] = sTreat
+	metrics.RisksByStatus["accepted"] = sAccept
+	metrics.RisksByStatus["closed"] = sClose
+	metrics.RisksByStatus["monitoring"] = sMon
 
 	// --- Control metrics ---
 	err = e.pool.QueryRow(ctx, `
@@ -263,6 +267,7 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 	}
 
 	// --- Incident metrics ---
+	var iBreach, iSec, iOps, iComp int64
 	err = e.pool.QueryRow(ctx, `
 		SELECT
 			COUNT(*),
@@ -277,15 +282,16 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 	).Scan(
 		&metrics.TotalIncidents,
 		&metrics.OpenIncidents,
-		&metrics.IncidentsByType["data_breach"],
-		&metrics.IncidentsByType["security"],
-		&metrics.IncidentsByType["operational"],
-		&metrics.IncidentsByType["compliance"],
+		&iBreach, &iSec, &iOps, &iComp,
 		&metrics.DataBreaches,
 	)
 	if err != nil && err != pgx.ErrNoRows {
 		return fmt.Errorf("snapshot incidents: %w", err)
 	}
+	metrics.IncidentsByType["data_breach"] = iBreach
+	metrics.IncidentsByType["security"] = iSec
+	metrics.IncidentsByType["operational"] = iOps
+	metrics.IncidentsByType["compliance"] = iComp
 
 	// --- Policy metrics ---
 	err = e.pool.QueryRow(ctx, `
@@ -305,6 +311,7 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 	}
 
 	// --- Vendor metrics ---
+	var vCrit, vHigh, vMed, vLow int64
 	err = e.pool.QueryRow(ctx, `
 		SELECT
 			COUNT(*),
@@ -318,16 +325,18 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 	).Scan(
 		&metrics.TotalVendors,
 		&metrics.ActiveVendors,
-		&metrics.VendorsByRiskTier["critical"],
-		&metrics.VendorsByRiskTier["high"],
-		&metrics.VendorsByRiskTier["medium"],
-		&metrics.VendorsByRiskTier["low"],
+		&vCrit, &vHigh, &vMed, &vLow,
 	)
 	if err != nil && err != pgx.ErrNoRows {
 		return fmt.Errorf("snapshot vendors: %w", err)
 	}
+	metrics.VendorsByRiskTier["critical"] = vCrit
+	metrics.VendorsByRiskTier["high"] = vHigh
+	metrics.VendorsByRiskTier["medium"] = vMed
+	metrics.VendorsByRiskTier["low"] = vLow
 
 	// --- Finding metrics ---
+	var fCrit, fHigh, fMed, fLow, fInfo int64
 	err = e.pool.QueryRow(ctx, `
 		SELECT
 			COUNT(*),
@@ -342,15 +351,16 @@ func (e *AnalyticsEngine) TakeSnapshot(ctx context.Context, orgID uuid.UUID, sna
 	).Scan(
 		&metrics.TotalFindings,
 		&metrics.OpenFindings,
-		&metrics.FindingsBySeverity["critical"],
-		&metrics.FindingsBySeverity["high"],
-		&metrics.FindingsBySeverity["medium"],
-		&metrics.FindingsBySeverity["low"],
-		&metrics.FindingsBySeverity["informational"],
+		&fCrit, &fHigh, &fMed, &fLow, &fInfo,
 	)
 	if err != nil && err != pgx.ErrNoRows {
 		return fmt.Errorf("snapshot findings: %w", err)
 	}
+	metrics.FindingsBySeverity["critical"] = fCrit
+	metrics.FindingsBySeverity["high"] = fHigh
+	metrics.FindingsBySeverity["medium"] = fMed
+	metrics.FindingsBySeverity["low"] = fLow
+	metrics.FindingsBySeverity["informational"] = fInfo
 
 	// --- Framework compliance scores ---
 	rows, err := e.pool.Query(ctx, `
@@ -1077,6 +1087,14 @@ func (e *AnalyticsEngine) ValidateModel(ctx context.Context, orgID uuid.UUID) (*
 // BENCHMARK ENGINE
 // ============================================================
 
+// orgMetric holds anonymized per-organization metrics for benchmark aggregation.
+type orgMetric struct {
+	Industry string
+	Size     string
+	Region   string
+	Metrics  SnapshotMetrics
+}
+
 // CalculateBenchmarks aggregates anonymized metrics across all organizations
 // and computes percentiles by category. No individual org data is exposed.
 func (e *AnalyticsEngine) CalculateBenchmarks(ctx context.Context) error {
@@ -1098,13 +1116,6 @@ func (e *AnalyticsEngine) CalculateBenchmarks(ctx context.Context) error {
 		return fmt.Errorf("query org snapshots for benchmarks: %w", err)
 	}
 	defer rows.Close()
-
-	type orgMetric struct {
-		Industry string
-		Size     string
-		Region   string
-		Metrics  SnapshotMetrics
-	}
 
 	var allOrgs []orgMetric
 	for rows.Next() {

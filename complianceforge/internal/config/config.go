@@ -100,6 +100,8 @@ type SecurityConfig struct {
 	RateLimitRequests int    `mapstructure:"RATE_LIMIT_REQUESTS"`
 	RateLimitWindow   string `mapstructure:"RATE_LIMIT_WINDOW"`
 	DataResidency     string `mapstructure:"DATA_RESIDENCY_REGION"`
+	AIAPIKey          string `mapstructure:"AI_API_KEY"`
+	AIModel           string `mapstructure:"AI_MODEL"`
 }
 
 // LoggingConfig holds logging settings.

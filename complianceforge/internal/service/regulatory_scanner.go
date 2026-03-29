@@ -417,23 +417,23 @@ func parseFlexibleDate(s string) time.Time {
 // classifyChangeType determines the regulatory_change_type based on keywords.
 func classifyChangeType(text string) string {
 	switch {
-	case containsAny(text, "enforcement", "fine", "penalty", "sanction", "infringement"):
+	case regContainsAny(text, "enforcement", "fine", "penalty", "sanction", "infringement"):
 		return "enforcement_decision"
-	case containsAny(text, "new regulation", "new law", "new directive", "enacted", "adopted regulation"):
+	case regContainsAny(text, "new regulation", "new law", "new directive", "enacted", "adopted regulation"):
 		return "new_regulation"
-	case containsAny(text, "amendment", "amend", "revised", "revision to"):
+	case regContainsAny(text, "amendment", "amend", "revised", "revision to"):
 		return "amendment"
-	case containsAny(text, "consultation", "call for evidence", "request for comment", "rfc", "public comment"):
+	case regContainsAny(text, "consultation", "call for evidence", "request for comment", "rfc", "public comment"):
 		return "consultation"
-	case containsAny(text, "guidance", "guideline", "advisory", "recommendation", "best practice"):
+	case regContainsAny(text, "guidance", "guideline", "advisory", "recommendation", "best practice"):
 		return "guidance"
-	case containsAny(text, "court ruling", "judgment", "court decision", "tribunal"):
+	case regContainsAny(text, "court ruling", "judgment", "court decision", "tribunal"):
 		return "court_ruling"
-	case containsAny(text, "standard revision", "iso update", "nist update", "framework update"):
+	case regContainsAny(text, "standard revision", "iso update", "nist update", "framework update"):
 		return "standard_revision"
-	case containsAny(text, "standard update", "pci update", "itil update"):
+	case regContainsAny(text, "standard update", "pci update", "itil update"):
 		return "standard_update"
-	case containsAny(text, "bulletin", "newsletter", "announcement", "press release"):
+	case regContainsAny(text, "bulletin", "newsletter", "announcement", "press release"):
 		return "industry_bulletin"
 	default:
 		return "guidance"
@@ -443,15 +443,15 @@ func classifyChangeType(text string) string {
 // classifySeverity determines severity based on keyword presence.
 func classifySeverity(text string) string {
 	switch {
-	case containsAny(text, "critical", "emergency", "immediate action", "mandatory",
+	case regContainsAny(text, "critical", "emergency", "immediate action", "mandatory",
 		"breach", "zero-day", "severe", "urgent"):
 		return "critical"
-	case containsAny(text, "high risk", "significant", "enforcement", "fine", "penalty",
+	case regContainsAny(text, "high risk", "significant", "enforcement", "fine", "penalty",
 		"non-compliance", "deadline", "mandatory requirement"):
 		return "high"
-	case containsAny(text, "update", "amendment", "revision", "change", "moderate"):
+	case regContainsAny(text, "update", "amendment", "revision", "change", "moderate"):
 		return "medium"
-	case containsAny(text, "minor", "low risk", "informational", "newsletter",
+	case regContainsAny(text, "minor", "low risk", "informational", "newsletter",
 		"summary", "digest", "overview"):
 		return "low"
 	default:
@@ -531,8 +531,8 @@ func detectTags(text string) []string {
 	return tags
 }
 
-// containsAny returns true if text contains any of the given substrings.
-func containsAny(text string, terms ...string) bool {
+// regContainsAny returns true if text contains any of the given substrings.
+func regContainsAny(text string, terms ...string) bool {
 	for _, term := range terms {
 		if strings.Contains(text, term) {
 			return true

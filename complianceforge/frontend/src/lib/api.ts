@@ -722,6 +722,124 @@ class ApiClient {
   async revokeAPIKey(id: string) {
     return this.request<any>(`/settings/api-keys/${id}`, { method: 'DELETE' });
   }
+
+  // ── Regulatory Change Management (Prompt 23) ──────
+  async getRegulatoryDashboard() {
+    return this.request<any>('/regulatory/dashboard');
+  }
+
+  async getRegulatoryChanges(queryString = '') {
+    return this.request<any>(`/regulatory/changes?${queryString}`);
+  }
+
+  async getRegulatoryChange(id: string) {
+    return this.request<any>(`/regulatory/changes/${id}`);
+  }
+
+  async assessRegulatoryImpact(changeId: string, data: any) {
+    return this.request<any>(`/regulatory/changes/${changeId}/assess`, { method: 'POST', body: data });
+  }
+
+  async getRegulatoryAssessment(changeId: string) {
+    return this.request<any>(`/regulatory/changes/${changeId}/assessment`);
+  }
+
+  async createRegulatoryResponsePlan(changeId: string) {
+    return this.request<any>(`/regulatory/changes/${changeId}/respond`, { method: 'POST' });
+  }
+
+  async getRegulatorySources() {
+    return this.request<any>('/regulatory/sources');
+  }
+
+  async createRegulatorySource(data: any) {
+    return this.request<any>('/regulatory/sources', { method: 'POST', body: data });
+  }
+
+  async getRegulatorySubscriptions() {
+    return this.request<any>('/regulatory/subscriptions');
+  }
+
+  async subscribeRegulatory(data: any) {
+    return this.request<any>('/regulatory/subscriptions', { method: 'POST', body: data });
+  }
+
+  async unsubscribeRegulatory(id: string) {
+    return this.request<any>(`/regulatory/subscriptions/${id}`, { method: 'DELETE' });
+  }
+
+  async getRegulatoryTimeline(months = 6) {
+    return this.request<any>(`/regulatory/timeline?months=${months}`);
+  }
+
+  // ── Marketplace (Prompt 22) ────────────────────────
+  async getMarketplacePackages(queryString = '') {
+    return this.request<any>(`/marketplace/packages?${queryString}`);
+  }
+
+  async getMarketplaceFeatured() {
+    return this.request<any>('/marketplace/packages/featured');
+  }
+
+  async getMarketplacePackagesByFramework(code: string) {
+    return this.request<any>(`/marketplace/packages/framework/${code}`);
+  }
+
+  async getMarketplacePackageDetail(publisher: string, slug: string) {
+    return this.request<any>(`/marketplace/packages/${publisher}/${slug}`);
+  }
+
+  async getMarketplacePackageVersions(publisher: string, slug: string) {
+    return this.request<any>(`/marketplace/packages/${publisher}/${slug}/versions`);
+  }
+
+  async getMarketplacePackageReviews(publisher: string, slug: string, page = 1, pageSize = 10) {
+    return this.request<any>(`/marketplace/packages/${publisher}/${slug}/reviews?page=${page}&page_size=${pageSize}`);
+  }
+
+  async installMarketplacePackage(data: any) {
+    return this.request<any>('/marketplace/install', { method: 'POST', body: data });
+  }
+
+  async uninstallMarketplacePackage(packageId: string) {
+    return this.request<any>(`/marketplace/install/${packageId}`, { method: 'DELETE' });
+  }
+
+  async updateMarketplaceInstallation(installationId: string) {
+    return this.request<any>(`/marketplace/install/${installationId}/update`, { method: 'POST' });
+  }
+
+  async getMarketplaceInstalled() {
+    return this.request<any>('/marketplace/installed');
+  }
+
+  async submitMarketplaceReview(data: any) {
+    return this.request<any>('/marketplace/reviews', { method: 'POST', body: data });
+  }
+
+  async createMarketplacePublisher(data: any) {
+    return this.request<any>('/marketplace/publishers', { method: 'POST', body: data });
+  }
+
+  async getMyPublisherProfile() {
+    return this.request<any>('/marketplace/publishers/me');
+  }
+
+  async getMyPublisherStats() {
+    return this.request<any>('/marketplace/publishers/me/stats');
+  }
+
+  async createMarketplacePackage(data: any) {
+    return this.request<any>('/marketplace/publishers/me/packages', { method: 'POST', body: data });
+  }
+
+  async publishMarketplaceVersion(packageId: string, data: any) {
+    return this.request<any>(`/marketplace/publishers/me/packages/${packageId}/versions`, { method: 'POST', body: data });
+  }
+
+  async exportAsMarketplacePackage(data: any) {
+    return this.request<any>('/marketplace/export', { method: 'POST', body: data });
+  }
 }
 
 export const api = new ApiClient();

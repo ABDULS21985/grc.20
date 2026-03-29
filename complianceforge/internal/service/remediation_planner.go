@@ -145,13 +145,13 @@ type PlanTimeline struct {
 	StartDate       *time.Time           `json:"start_date"`
 	EndDate         *time.Time           `json:"end_date"`
 	TotalWeeks      int                  `json:"total_weeks"`
-	TimelineEntries []TimelineEntry      `json:"entries"`
+	TimelineEntries []RemediationTimelineEntry `json:"entries"`
 	CriticalPath    []uuid.UUID          `json:"critical_path"`
 	Milestones      []TimelineMilestone  `json:"milestones"`
 }
 
-// TimelineEntry represents a single action on the timeline.
-type TimelineEntry struct {
+// RemediationTimelineEntry represents a single action on the remediation timeline.
+type RemediationTimelineEntry struct {
 	ActionID    uuid.UUID  `json:"action_id"`
 	ActionRef   string     `json:"action_ref"`
 	Title       string     `json:"title"`
@@ -695,10 +695,10 @@ func (rp *RemediationPlanner) GetTimeline(ctx context.Context, orgID, planID uui
 	}
 
 	var earliestStart, latestEnd *time.Time
-	entries := make([]TimelineEntry, 0, len(plan.Actions))
+	entries := make([]RemediationTimelineEntry, 0, len(plan.Actions))
 
 	for _, action := range plan.Actions {
-		entry := TimelineEntry{
+		entry := RemediationTimelineEntry{
 			ActionID:     action.ID,
 			ActionRef:    action.ActionRef,
 			Title:        action.Title,
