@@ -1077,6 +1077,186 @@ class ApiClient {
   async getPreAuditReport(id: string) {
     return this.request<any>(`/evidence/pre-audit-check/${id}/report`);
   }
+
+  // ── Collaboration — Comments (Prompt 33) ────────
+  async getComments(entityType: string, entityId: string, sort = 'oldest') {
+    return this.request<any>(`/comments/${entityType}/${entityId}?sort=${sort}`);
+  }
+
+  async createComment(entityType: string, entityId: string, data: any) {
+    return this.request<any>(`/comments/${entityType}/${entityId}`, { method: 'POST', body: data });
+  }
+
+  async editComment(commentId: string, data: any) {
+    return this.request<any>(`/comments/${commentId}`, { method: 'PUT', body: data });
+  }
+
+  async deleteComment(commentId: string) {
+    return this.request<any>(`/comments/${commentId}`, { method: 'DELETE' });
+  }
+
+  async pinComment(commentId: string) {
+    return this.request<any>(`/comments/${commentId}/pin`, { method: 'POST' });
+  }
+
+  async reactToComment(commentId: string, reactionType: string) {
+    return this.request<any>(`/comments/${commentId}/react`, { method: 'POST', body: { reaction_type: reactionType } });
+  }
+
+  // ── Collaboration — Activity Feed (Prompt 33) ──
+  async getActivityFeed(page = 1, pageSize = 20, filters: Record<string, string> = {}) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    return this.request<any>(`/activity/feed?${params.toString()}`);
+  }
+
+  async getOrgActivityFeed(page = 1, pageSize = 20, filters: Record<string, string> = {}) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    return this.request<any>(`/activity/org?${params.toString()}`);
+  }
+
+  async getEntityActivity(entityType: string, entityId: string, page = 1, pageSize = 20) {
+    return this.request<any>(`/activity/${entityType}/${entityId}?page=${page}&page_size=${pageSize}`);
+  }
+
+  async getUnreadCounts() {
+    return this.request<any>('/activity/unread');
+  }
+
+  async markEntityRead(entityType: string, entityId: string) {
+    return this.request<any>(`/activity/${entityType}/${entityId}/mark-read`, { method: 'POST' });
+  }
+
+  // ── Collaboration — Following (Prompt 33) ──────
+  async getFollowing(page = 1, pageSize = 20) {
+    return this.request<any>(`/following?page=${page}&page_size=${pageSize}`);
+  }
+
+  async followEntity(entityType: string, entityId: string, followType = 'watching') {
+    return this.request<any>(`/following/${entityType}/${entityId}`, { method: 'POST', body: { follow_type: followType } });
+  }
+
+  async unfollowEntity(entityType: string, entityId: string) {
+    return this.request<any>(`/following/${entityType}/${entityId}`, { method: 'DELETE' });
+  }
+
+  // ── Mobile API (Prompt 34) ────────────────────────
+  async getMobileDashboard() {
+    return this.request<any>('/mobile/dashboard');
+  }
+
+  async getMobileApprovals(page = 1, pageSize = 20) {
+    return this.request<any>(`/mobile/approvals?page=${page}&page_size=${pageSize}`);
+  }
+
+  async mobileApprove(id: string, comment = '') {
+    return this.request<any>(`/mobile/approvals/${id}/approve`, { method: 'POST', body: { comment } });
+  }
+
+  async mobileReject(id: string, reason: string) {
+    return this.request<any>(`/mobile/approvals/${id}/reject`, { method: 'POST', body: { reason } });
+  }
+
+  async getMobileIncidents(page = 1, pageSize = 20) {
+    return this.request<any>(`/mobile/incidents/active?page=${page}&page_size=${pageSize}`);
+  }
+
+  async getMobileDeadlines(days = 7) {
+    return this.request<any>(`/mobile/deadlines?days=${days}`);
+  }
+
+  async getMobileActivity(limit = 20) {
+    return this.request<any>(`/mobile/activity?limit=${limit}`);
+  }
+
+  async registerPushToken(data: { platform: string; token: string; device_name?: string; device_model?: string; os_version?: string; app_version?: string }) {
+    return this.request<any>('/mobile/push/register', { method: 'POST', body: data });
+  }
+
+  async unregisterPushToken(data: { token_hash?: string; token?: string }) {
+    return this.request<any>('/mobile/push/unregister', { method: 'DELETE', body: data });
+  }
+
+  async getPushPreferences() {
+    return this.request<any>('/mobile/push/preferences');
+  }
+
+  async updatePushPreferences(data: any) {
+    return this.request<any>('/mobile/push/preferences', { method: 'PUT', body: data });
+  }
+
+  // ── Branding & White-Labelling (Prompt 35) ──────
+  async getBranding() {
+    return this.request<any>('/branding');
+  }
+
+  async getBrandingCSS() {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE}/branding/css`, { headers });
+    return response.text();
+  }
+
+  async updateBranding(data: any) {
+    return this.request<any>('/branding', { method: 'PUT', body: data });
+  }
+
+  async uploadLogo(logoType: string, file: File) {
+    const formData = new FormData();
+    formData.append('logo_type', logoType);
+    formData.append('file', file);
+
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE}/branding/logo`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error?.message || 'Upload failed');
+    }
+    return response.json();
+  }
+
+  async deleteLogo(logoType: string) {
+    return this.request<any>(`/branding/logo/${logoType}`, { method: 'DELETE' });
+  }
+
+  async verifyDomain(data: { domain: string }) {
+    return this.request<any>('/branding/domain/verify', { method: 'POST', body: data });
+  }
+
+  async getDomainStatus() {
+    return this.request<any>('/branding/domain/status');
+  }
+
+  async previewBranding(data: any) {
+    return this.request<any>('/branding/preview', { method: 'POST', body: data });
+  }
+
+  // ── White-Label Partners (Super Admin, Prompt 35) ──
+  async getPartners() {
+    return this.request<any>('/admin/partners');
+  }
+
+  async createPartner(data: any) {
+    return this.request<any>('/admin/partners', { method: 'POST', body: data });
+  }
+
+  async updatePartner(id: string, data: any) {
+    return this.request<any>(`/admin/partners/${id}`, { method: 'PUT', body: data });
+  }
+
+  async getPartnerTenants(id: string) {
+    return this.request<any>(`/admin/partners/${id}/tenants`);
+  }
 }
 
 export const api = new ApiClient();
