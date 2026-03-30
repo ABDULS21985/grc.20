@@ -1326,6 +1326,389 @@ class ApiClient {
   async getPartnerTenants(id: string) {
     return this.request<any>(`/admin/partners/${id}/tenants`);
   }
+
+  // ══════════════════════════════════════════════════
+  // BATCH 8 — Prompts 36–40
+  // ══════════════════════════════════════════════════
+
+  // ── Compliance-as-Code Engine (Prompt 36) ─────────
+  async listCaCRepositories(page = 1, pageSize = 20) {
+    return this.request<any>(`/cac/repositories?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createCaCRepository(data: any) {
+    return this.request<any>('/cac/repositories', { method: 'POST', body: data });
+  }
+
+  async updateCaCRepository(id: string, data: any) {
+    return this.request<any>(`/cac/repositories/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteCaCRepository(id: string) {
+    return this.request<any>(`/cac/repositories/${id}`, { method: 'DELETE' });
+  }
+
+  async triggerCaCSync(repoId: string) {
+    return this.request<any>(`/cac/repositories/${repoId}/sync`, { method: 'POST' });
+  }
+
+  async getCaCRepoStatus(repoId: string) {
+    return this.request<any>(`/cac/repositories/${repoId}/status`);
+  }
+
+  async listCaCSyncRuns(page = 1, pageSize = 20) {
+    return this.request<any>(`/cac/sync-runs?page=${page}&page_size=${pageSize}`);
+  }
+
+  async getCaCSyncRun(id: string) {
+    return this.request<any>(`/cac/sync-runs/${id}`);
+  }
+
+  async approveCaCSyncRun(id: string) {
+    return this.request<any>(`/cac/sync-runs/${id}/approve`, { method: 'POST' });
+  }
+
+  async rejectCaCSyncRun(id: string, reason: string) {
+    return this.request<any>(`/cac/sync-runs/${id}/reject`, { method: 'POST', body: { reason } });
+  }
+
+  async listCaCDriftEvents(page = 1, pageSize = 20, filters?: { direction?: string; status?: string; kind?: string }) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    if (filters?.direction) params.set('direction', filters.direction);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.kind) params.set('kind', filters.kind);
+    return this.request<any>(`/cac/drift?${params}`);
+  }
+
+  async resolveCaCDrift(id: string, resolution: string) {
+    return this.request<any>(`/cac/drift/${id}/resolve`, { method: 'POST', body: { resolution } });
+  }
+
+  async listCaCResourceMappings(page = 1, pageSize = 20, filters?: { kind?: string; status?: string; search?: string }) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    if (filters?.kind) params.set('kind', filters.kind);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.search) params.set('search', filters.search);
+    return this.request<any>(`/cac/resource-mappings?${params}`);
+  }
+
+  async validateCaCYAML(content: string) {
+    return this.request<any>('/cac/validate', { method: 'POST', body: { content } });
+  }
+
+  async planCaCChanges(repoId: string, content: string) {
+    return this.request<any>('/cac/plan', { method: 'POST', body: { repository_id: repoId, content } });
+  }
+
+  async applyCaCChanges(syncRunId: string) {
+    return this.request<any>('/cac/apply', { method: 'POST', body: { sync_run_id: syncRunId } });
+  }
+
+  async exportCaCYAML() {
+    return this.request<any>('/cac/export', { method: 'POST' });
+  }
+
+  // ── Data Residency (Prompt 37) ────────────────────
+  async getResidencyConfig() {
+    return this.request<any>('/residency/config');
+  }
+
+  async getResidencyStatus() {
+    return this.request<any>('/residency/status');
+  }
+
+  async getResidencyAuditLog(page = 1, pageSize = 20, filters?: { action?: string; allowed?: string; date_from?: string; date_to?: string }) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    if (filters?.action) params.set('action', filters.action);
+    if (filters?.allowed) params.set('allowed', filters.allowed);
+    if (filters?.date_from) params.set('date_from', filters.date_from);
+    if (filters?.date_to) params.set('date_to', filters.date_to);
+    return this.request<any>(`/residency/audit-log?${params}`);
+  }
+
+  async validateDataExport(destinationRegion: string) {
+    return this.request<any>('/residency/validate-export', { method: 'POST', body: { destination_region: destinationRegion } });
+  }
+
+  async validateDataTransfer(vendorId: string, destinationCountry: string) {
+    return this.request<any>('/residency/validate-transfer', { method: 'POST', body: { vendor_id: vendorId, destination_country: destinationCountry } });
+  }
+
+  async listResidencyRegions() {
+    return this.request<any>('/residency/regions');
+  }
+
+  // ── Advanced Audit Management (Prompt 38) ─────────
+  async listAuditProgrammes(page = 1, pageSize = 20) {
+    return this.request<any>(`/audit-programmes/programmes?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createAuditProgramme(data: any) {
+    return this.request<any>('/audit-programmes/programmes', { method: 'POST', body: data });
+  }
+
+  async getAuditProgramme(id: string) {
+    return this.request<any>(`/audit-programmes/programmes/${id}`);
+  }
+
+  async triggerRiskBasedSelection(programmeId: string, data: any) {
+    return this.request<any>(`/audit-programmes/programmes/${programmeId}/risk-selection`, { method: 'POST', body: data });
+  }
+
+  async listAuditUniverse(page = 1, pageSize = 20) {
+    return this.request<any>(`/audit-programmes/universe?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createAuditableEntity(data: any) {
+    return this.request<any>('/audit-programmes/universe', { method: 'POST', body: data });
+  }
+
+  async updateAuditableEntity(id: string, data: any) {
+    return this.request<any>(`/audit-programmes/universe/${id}`, { method: 'PUT', body: data });
+  }
+
+  async listAuditEngagements(page = 1, pageSize = 20) {
+    return this.request<any>(`/audit-programmes/engagements?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createAuditEngagement(data: any) {
+    return this.request<any>('/audit-programmes/engagements', { method: 'POST', body: data });
+  }
+
+  async getAuditEngagement(id: string) {
+    return this.request<any>(`/audit-programmes/engagements/${id}`);
+  }
+
+  async updateEngagementStatus(id: string, status: string) {
+    return this.request<any>(`/audit-programmes/engagements/${id}/status`, { method: 'PUT', body: { status } });
+  }
+
+  async listWorkpapers(engagementId: string) {
+    return this.request<any>(`/audit-programmes/engagements/${engagementId}/workpapers`);
+  }
+
+  async createWorkpaper(engagementId: string, data: any) {
+    return this.request<any>(`/audit-programmes/engagements/${engagementId}/workpapers`, { method: 'POST', body: data });
+  }
+
+  async updateWorkpaper(id: string, data: any) {
+    return this.request<any>(`/audit-programmes/workpapers/${id}`, { method: 'PUT', body: data });
+  }
+
+  async submitWorkpaperForReview(id: string) {
+    return this.request<any>(`/audit-programmes/workpapers/${id}/review`, { method: 'POST' });
+  }
+
+  async generateAuditSample(engagementId: string, config: any) {
+    return this.request<any>(`/audit-programmes/engagements/${engagementId}/samples`, { method: 'POST', body: config });
+  }
+
+  async getAuditSample(id: string) {
+    return this.request<any>(`/audit-programmes/samples/${id}`);
+  }
+
+  async recordSampleItemResult(sampleId: string, itemIndex: number, data: any) {
+    return this.request<any>(`/audit-programmes/samples/${sampleId}/items/${itemIndex}`, { method: 'PUT', body: data });
+  }
+
+  async createTestProcedure(engagementId: string, data: any) {
+    return this.request<any>(`/audit-programmes/engagements/${engagementId}/test-procedures`, { method: 'POST', body: data });
+  }
+
+  async recordTestResult(testProcedureId: string, data: any) {
+    return this.request<any>(`/audit-programmes/test-procedures/${testProcedureId}`, { method: 'PUT', body: data });
+  }
+
+  async listCorrectiveActions(page = 1, pageSize = 20, filters?: { status?: string; priority?: string }) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.priority) params.set('priority', filters.priority);
+    return this.request<any>(`/audit-programmes/corrective-actions?${params}`);
+  }
+
+  async createCorrectiveAction(data: any) {
+    return this.request<any>('/audit-programmes/corrective-actions', { method: 'POST', body: data });
+  }
+
+  async updateCorrectiveAction(id: string, data: any) {
+    return this.request<any>(`/audit-programmes/corrective-actions/${id}`, { method: 'PUT', body: data });
+  }
+
+  async verifyCorrectiveAction(id: string) {
+    return this.request<any>(`/audit-programmes/corrective-actions/${id}/verify`, { method: 'POST' });
+  }
+
+  // ── Training & Certification (Prompt 39) ──────────
+  async listTrainingProgrammes(page = 1, pageSize = 20) {
+    return this.request<any>(`/training/programmes?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createTrainingProgramme(data: any) {
+    return this.request<any>('/training/programmes', { method: 'POST', body: data });
+  }
+
+  async getTrainingProgramme(id: string) {
+    return this.request<any>(`/training/programmes/${id}`);
+  }
+
+  async updateTrainingProgramme(id: string, data: any) {
+    return this.request<any>(`/training/programmes/${id}`, { method: 'PUT', body: data });
+  }
+
+  async generateTrainingAssignments(programmeId: string) {
+    return this.request<any>(`/training/programmes/${programmeId}/generate-assignments`, { method: 'POST' });
+  }
+
+  async getMyTrainingAssignments() {
+    return this.request<any>('/training/my-assignments');
+  }
+
+  async listTrainingAssignments(page = 1, pageSize = 20) {
+    return this.request<any>(`/training/assignments?page=${page}&page_size=${pageSize}`);
+  }
+
+  async startTrainingAssignment(id: string) {
+    return this.request<any>(`/training/assignments/${id}/start`, { method: 'POST' });
+  }
+
+  async completeTrainingAssignment(id: string, data: { score: number; time_spent_minutes: number }) {
+    return this.request<any>(`/training/assignments/${id}/complete`, { method: 'POST', body: data });
+  }
+
+  async exemptTrainingAssignment(id: string, reason: string) {
+    return this.request<any>(`/training/assignments/${id}/exempt`, { method: 'POST', body: { reason } });
+  }
+
+  async getTrainingCertificate(assignmentId: string) {
+    return this.request<any>(`/training/assignments/${assignmentId}/certificate`);
+  }
+
+  async getTrainingDashboard() {
+    return this.request<any>('/training/dashboard');
+  }
+
+  async getTrainingComplianceMatrix(department?: string) {
+    const params = department ? `?department=${department}` : '';
+    return this.request<any>(`/training/compliance-matrix${params}`);
+  }
+
+  async exportTrainingComplianceMatrix(department?: string) {
+    const params = department ? `?department=${department}` : '';
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE}/training/compliance-matrix/export${params}`, { headers });
+    return response.text();
+  }
+
+  async listPhishingSimulations(page = 1, pageSize = 20) {
+    return this.request<any>(`/training/phishing/simulations?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createPhishingSimulation(data: any) {
+    return this.request<any>('/training/phishing/simulations', { method: 'POST', body: data });
+  }
+
+  async launchPhishingSimulation(id: string) {
+    return this.request<any>(`/training/phishing/simulations/${id}/launch`, { method: 'POST' });
+  }
+
+  async getPhishingSimulationResults(id: string) {
+    return this.request<any>(`/training/phishing/simulations/${id}/results`);
+  }
+
+  async getPhishingTrend() {
+    return this.request<any>('/training/phishing/trend');
+  }
+
+  async listProfessionalCertifications(page = 1, pageSize = 20) {
+    return this.request<any>(`/training/certifications?page=${page}&page_size=${pageSize}`);
+  }
+
+  async addProfessionalCertification(data: any) {
+    return this.request<any>('/training/certifications', { method: 'POST', body: data });
+  }
+
+  async updateProfessionalCertification(id: string, data: any) {
+    return this.request<any>(`/training/certifications/${id}`, { method: 'PUT', body: data });
+  }
+
+  async getExpiringCertifications(withinDays = 90) {
+    return this.request<any>(`/training/certifications/expiring?within_days=${withinDays}`);
+  }
+
+  async getCertificationMatrix() {
+    return this.request<any>('/training/certifications/matrix');
+  }
+
+  // ── Developer Portal & Webhooks (Prompt 40) ──────
+  async listAPIKeys(page = 1, pageSize = 20) {
+    return this.request<any>(`/developer/api-keys?page=${page}&page_size=${pageSize}`);
+  }
+
+  async generateAPIKey(data: any) {
+    return this.request<any>('/developer/api-keys', { method: 'POST', body: data });
+  }
+
+  async updateAPIKey(id: string, data: any) {
+    return this.request<any>(`/developer/api-keys/${id}`, { method: 'PUT', body: data });
+  }
+
+  async revokeAPIKey(id: string) {
+    return this.request<any>(`/developer/api-keys/${id}`, { method: 'DELETE' });
+  }
+
+  async getAPIKeyUsage(id: string, period = '7d') {
+    return this.request<any>(`/developer/api-keys/${id}/usage?period=${period}`);
+  }
+
+  async listWebhookSubscriptions(page = 1, pageSize = 20) {
+    return this.request<any>(`/developer/webhooks?page=${page}&page_size=${pageSize}`);
+  }
+
+  async createWebhookSubscription(data: any) {
+    return this.request<any>('/developer/webhooks', { method: 'POST', body: data });
+  }
+
+  async updateWebhookSubscription(id: string, data: any) {
+    return this.request<any>(`/developer/webhooks/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteWebhookSubscription(id: string) {
+    return this.request<any>(`/developer/webhooks/${id}`, { method: 'DELETE' });
+  }
+
+  async testWebhook(id: string) {
+    return this.request<any>(`/developer/webhooks/${id}/test`, { method: 'POST' });
+  }
+
+  async getWebhookDeliveries(subscriptionId: string, page = 1, pageSize = 20) {
+    return this.request<any>(`/developer/webhooks/${subscriptionId}/deliveries?page=${page}&page_size=${pageSize}`);
+  }
+
+  async replayWebhookDelivery(deliveryId: string) {
+    return this.request<any>(`/developer/webhooks/deliveries/${deliveryId}/replay`, { method: 'POST' });
+  }
+
+  async createSandbox() {
+    return this.request<any>('/developer/sandbox', { method: 'POST' });
+  }
+
+  async getSandbox() {
+    return this.request<any>('/developer/sandbox');
+  }
+
+  async destroySandbox() {
+    return this.request<any>('/developer/sandbox', { method: 'DELETE' });
+  }
+
+  async listWebhookEventTypes() {
+    return this.request<any>('/developer/events');
+  }
+
+  async listAPIScopes() {
+    return this.request<any>('/developer/scopes');
+  }
 }
 
 export const api = new ApiClient();

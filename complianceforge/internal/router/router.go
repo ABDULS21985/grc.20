@@ -164,6 +164,24 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	evidenceTemplateSvc := service.NewEvidenceTemplateService(db.Pool)
 	evidenceTestRunner := service.NewEvidenceTestRunner(db.Pool)
 
+	// Batch 8: Compliance-as-Code Engine
+	cacEngine := service.NewCaCEngine(db.Pool)
+
+	// Batch 8: Data Residency
+	dataResidencySvc := service.NewDataResidencyService(db.Pool)
+
+	// Batch 8: Advanced Audit Management
+	auditProgrammeSvc := service.NewAuditProgrammeService(db.Pool)
+
+	// Batch 8: Training & Certification
+	trainingSvc := service.NewTrainingService(db.Pool)
+	phishingSvc := service.NewPhishingService(db.Pool)
+	certificationSvc := service.NewCertificationService(db.Pool)
+
+	// Batch 8: Developer Portal & Webhooks
+	webhookSvc := service.NewWebhookService(db.Pool)
+	developerPortalSvc := service.NewDeveloperPortalService(db.Pool)
+
 	// ── Handlers ─────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, cfg.App.Version)
 	authH := handler.NewAuthHandler(authSvc)
@@ -218,6 +236,13 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	questionnaireH := handler.NewQuestionnaireHandler(questionnaireSvc, vendorAssessmentSvc)
 	vendorPortalH := handler.NewVendorPortalHandler(vendorAssessmentSvc, questionnaireSvc)
 	evidenceTemplateH := handler.NewEvidenceTemplateHandler(evidenceTemplateSvc, evidenceTestRunner)
+
+	// Batch 8 Handlers
+	cacH := handler.NewCaCHandler(cacEngine)
+	residencyH := handler.NewResidencyHandler(dataResidencySvc)
+	auditProgrammeH := handler.NewAuditProgrammeHandler(auditProgrammeSvc)
+	trainingH := handler.NewTrainingHandler(trainingSvc, phishingSvc, certificationSvc)
+	developerH := handler.NewDeveloperHandler(developerPortalSvc, webhookSvc)
 
 	// ── Background Workers ─────────────────────────────────
 	calendarWorker := worker.NewCalendarWorker(calendarSvc, db.Pool)
@@ -552,6 +577,31 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 
 			// ── Branding & White-Labelling (Batch 7) ────
 			brandingH.RegisterRoutes(r)
+
+			// ── Compliance-as-Code Engine (Batch 8) ─────
+			r.Route("/cac", func(r chi.Router) {
+				cacH.RegisterRoutes(r)
+			})
+
+			// ── Data Residency (Batch 8) ────────────────
+			r.Route("/residency", func(r chi.Router) {
+				residencyH.RegisterRoutes(r)
+			})
+
+			// ── Advanced Audit Management (Batch 8) ─────
+			r.Route("/audit-programmes", func(r chi.Router) {
+				auditProgrammeH.RegisterRoutes(r)
+			})
+
+			// ── Training & Certification (Batch 8) ──────
+			r.Route("/training", func(r chi.Router) {
+				trainingH.RegisterRoutes(r)
+			})
+
+			// ── Developer Portal & Webhooks (Batch 8) ───
+			r.Route("/developer", func(r chi.Router) {
+				developerH.RegisterRoutes(r)
+			})
 		})
 
 		// Public — Board Portal (token-based, no JWT)
