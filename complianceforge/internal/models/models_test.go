@@ -73,12 +73,12 @@ func TestUserPasswordNotExposed(t *testing.T) {
 // ============================================================
 
 func TestJSONBMarshal(t *testing.T) {
-	j := models.JSONB(`{"key": "value"}`)
+	j := models.JSONB(`{"key":"value"}`)
 	bytes, err := json.Marshal(j)
 	if err != nil {
 		t.Fatalf("Marshal failed: %v", err)
 	}
-	if string(bytes) != `{"key": "value"}` {
+	if string(bytes) != `{"key":"value"}` {
 		t.Errorf("Unexpected output: %s", string(bytes))
 	}
 }

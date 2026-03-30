@@ -373,7 +373,11 @@ func TestDetectRegions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.text[:20], func(t *testing.T) {
+		name := tt.text
+		if len(name) > 20 {
+			name = name[:20]
+		}
+		t.Run(name, func(t *testing.T) {
 			result := detectRegions(tt.text)
 			if tt.expected == nil && len(result) == 0 {
 				return // Both empty, OK

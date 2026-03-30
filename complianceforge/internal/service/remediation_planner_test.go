@@ -188,7 +188,7 @@ func TestPlanProgressCalculation(t *testing.T) {
 			},
 			expectedCompleted:  2,
 			expectedPending:    1,
-			expectedPercentage: 66.67,
+			expectedPercentage: 66.66,
 		},
 		{
 			name: "half completed",

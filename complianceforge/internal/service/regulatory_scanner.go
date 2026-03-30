@@ -443,11 +443,11 @@ func classifyChangeType(text string) string {
 // classifySeverity determines severity based on keyword presence.
 func classifySeverity(text string) string {
 	switch {
-	case regContainsAny(text, "critical", "emergency", "immediate action", "mandatory",
+	case regContainsAny(text, "critical", "emergency", "immediate action",
 		"breach", "zero-day", "severe", "urgent"):
 		return "critical"
 	case regContainsAny(text, "high risk", "significant", "enforcement", "fine", "penalty",
-		"non-compliance", "deadline", "mandatory requirement"):
+		"non-compliance", "deadline", "mandatory requirement", "mandatory"):
 		return "high"
 	case regContainsAny(text, "update", "amendment", "revision", "change", "moderate"):
 		return "medium"
@@ -480,8 +480,9 @@ func detectRegions(text string) []string {
 
 	seen := make(map[string]bool)
 	var regions []string
+	lower := strings.ToLower(text)
 	for keyword, codes := range regionMap {
-		if strings.Contains(text, keyword) {
+		if strings.Contains(lower, keyword) {
 			for _, code := range codes {
 				if !seen[code] {
 					seen[code] = true
@@ -522,8 +523,9 @@ func detectTags(text string) []string {
 
 	seen := make(map[string]bool)
 	var tags []string
+	lower := strings.ToLower(text)
 	for keyword, tag := range tagKeywords {
-		if strings.Contains(text, keyword) && !seen[tag] {
+		if strings.Contains(lower, keyword) && !seen[tag] {
 			seen[tag] = true
 			tags = append(tags, tag)
 		}
@@ -533,8 +535,9 @@ func detectTags(text string) []string {
 
 // regContainsAny returns true if text contains any of the given substrings.
 func regContainsAny(text string, terms ...string) bool {
+	lower := strings.ToLower(text)
 	for _, term := range terms {
-		if strings.Contains(text, term) {
+		if strings.Contains(lower, term) {
 			return true
 		}
 	}

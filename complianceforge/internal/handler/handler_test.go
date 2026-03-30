@@ -16,7 +16,7 @@ import (
 
 func TestHealthEndpoint(t *testing.T) {
 	// This is a unit test — no database required
-	req := httptest.NewRequest("GET", "/api/v1/health", nil)
+	_ = httptest.NewRequest("GET", "/api/v1/health", nil)
 	w := httptest.NewRecorder()
 
 	// Simulate the health handler directly

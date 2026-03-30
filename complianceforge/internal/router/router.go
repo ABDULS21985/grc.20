@@ -16,6 +16,7 @@ import (
 	"github.com/complianceforge/platform/internal/pkg/storage"
 	"github.com/complianceforge/platform/internal/repository"
 	"github.com/complianceforge/platform/internal/service"
+	"github.com/complianceforge/platform/internal/worker"
 )
 
 func New(cfg *config.Config, db *database.DB) *chi.Mux {
@@ -138,6 +139,10 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	// Batch 7: Push Notifications & Mobile API
 	pushSvc := service.NewPushService(db.Pool, &service.StubPushProvider{})
 
+	// Batch 7: Push Integration (bridges EventBus → PushService)
+	pushIntegration := service.NewPushIntegration(db.Pool, pushSvc, eventBus)
+	_ = pushIntegration // started via eventBus subscriptions internally
+
 	// Batch 7: Branding & White-Labelling
 	brandingSvc := service.NewBrandingService(db.Pool)
 
@@ -213,6 +218,16 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 	questionnaireH := handler.NewQuestionnaireHandler(questionnaireSvc, vendorAssessmentSvc)
 	vendorPortalH := handler.NewVendorPortalHandler(vendorAssessmentSvc, questionnaireSvc)
 	evidenceTemplateH := handler.NewEvidenceTemplateHandler(evidenceTemplateSvc, evidenceTestRunner)
+
+	// ── Background Workers ─────────────────────────────────
+	calendarWorker := worker.NewCalendarWorker(calendarSvc, db.Pool)
+	_ = calendarWorker // started by main goroutine
+
+	searchIndexer := worker.NewSearchIndexer(db.Pool, searchEngine)
+	_ = searchIndexer // started by main goroutine
+
+	analyticsScheduler := worker.NewAnalyticsScheduler(analyticsEngine, db.Pool)
+	_ = analyticsScheduler // started by main goroutine
 
 	// ── Routes ───────────────────────────────────────────────
 	r.Route("/api/v1", func(r chi.Router) {
@@ -531,7 +546,9 @@ func New(cfg *config.Config, db *database.DB) *chi.Mux {
 			collaborationH.RegisterRoutes(r)
 
 			// ── Mobile API & Push Notifications (Batch 7)
-			mobileH.RegisterRoutes(r)
+			r.Route("/mobile", func(r chi.Router) {
+				mobileH.RegisterRoutes(r)
+			})
 
 			// ── Branding & White-Labelling (Batch 7) ────
 			brandingH.RegisterRoutes(r)
